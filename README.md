@@ -45,17 +45,42 @@ $ npm run start:dev
 $ npm run start:prod
 ```
 
-## Test
+## STEPS
 
 ```bash
-# unit tests
-$ npm run test
+1.  Install Node.js
+        https://nodejs.org/en
 
-# e2e tests
-$ npm run test:e2e
+2.  Install MongoDB Community Server
+        https://www.mongodb.com/try/download/community-kubernetes-operator
 
-# test coverage
-$ npm run test:cov
+3.  Install Mongoose
+        npm install mongoose
+
+4.  Install Nest CLI
+        npm install -g @nestjs/cli
+
+5.  Create a new Nest.js project
+        nest new backend
+        cd backend
+
+6.  Install Mongoose module for Nest.js
+        npm install @nestjs/mongoose mongoose
+
+7.  Install validator packages
+        npm install class-validator class-transformer
+
+8.  Install @nestjs/mapped-types
+        npm install @nestjs/mapped-types
+
+
+9.  Install Svelte
+        npx degit sveltejs/template frontend
+        cd frontend
+        npm install
+
+
+
 ```
 
 ## Support
