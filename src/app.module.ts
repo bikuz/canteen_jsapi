@@ -39,10 +39,7 @@ import { SharedModule } from './auth/shared.module';
     PaymentsModule,
     CategoriesModule,    
     FoodItemsModule,
-    AnalyticsModule,
-   
-    
-       
+    AnalyticsModule,  
   ],
   controllers: [AppController, AuthController],
   providers: [AppService, AuthService],

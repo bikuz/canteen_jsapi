@@ -6,6 +6,9 @@ export class Category extends Document {
   @Prop({ required: true })
   name: string;
 
+  @Prop() 
+  image: string | null;
+
   @Prop({ default: Date.now })
   createdAt: Date;
 }
