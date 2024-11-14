@@ -1,5 +1,6 @@
 // create-user.dto.ts
 import { IsNotEmpty, IsString, IsEmail, IsMongoId } from 'class-validator';
+import {  Types } from 'mongoose';
 
 export class CreateUserDto {
   @IsNotEmpty()
@@ -12,12 +13,12 @@ export class CreateUserDto {
 
   @IsNotEmpty()
   @IsMongoId()
-  role: string;
+  role: Types.ObjectId; 
 
   @IsNotEmpty()
   profile: {
     firstName: string;
-    lastName: string;
+    lastName: string;   
     email: string;
     phoneNumber: string;
   };

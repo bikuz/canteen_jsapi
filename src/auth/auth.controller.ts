@@ -26,16 +26,30 @@
 import { Controller, Post, Body, UseGuards, Request } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './local-auth.guard';
-import { JwtAuthGuard } from './jwt-auth.guard';
+import { LdapAuthGuard } from '../auth/ldap.guard';
+import { JwtAuthGuard } from '../authjwt/jwt-auth.guard';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post('login')
+  @Post('login/local')
   @UseGuards(LocalAuthGuard)
-  async login(@Request() req) {
+  async loginLocal(@Request() req) {
+    console.log(req.user);
     return this.authService.login(req.user);
+  }
+
+  @Post('login/ldap')
+  @UseGuards(LdapAuthGuard)
+  async loginLdap(@Request() req){
+    const ldapUser = req.user;
+    
+
+    console.log('hit login/ldap');
+    
+    const user = await this.authService.validateLdapUser(ldapUser);
+    return this.authService.login(user);
   }
 
   @Post('register')

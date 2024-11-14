@@ -35,13 +35,17 @@ import { JwtModule } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
 import { PassportModule } from '@nestjs/passport';
 import { AuthService } from './auth.service';
-import { JwtStrategy } from './jwt.strategy';
+import { JwtStrategy } from '../authjwt/jwt.strategy';
 import { LocalStrategy } from './local.strategy';
 import { UserService } from '../users/users.service';
 import { UserSchema, User } from '../users/users.model';
+import { RoleService } from '../role/role.service';
 import { RoleSchema, Role } from '../role/role.model';
 import { AuthController } from './auth.controller';
-import { SharedModule } from './shared.module';
+import { SharedModule } from '../authjwt/shared.module';
+import { LdapStrategy } from './ldap.strategy';
+
+
 
 @Module({
   imports: [
@@ -53,7 +57,7 @@ import { SharedModule } from './shared.module';
     // }),
     SharedModule,
   ],
-  providers: [AuthService, UserService, LocalStrategy, JwtStrategy],
+  providers: [AuthService,  UserService, RoleService, LdapStrategy, LocalStrategy, JwtStrategy],
   controllers: [AuthController],
   exports: [AuthService],
 })

@@ -38,8 +38,7 @@ export class RoleInitService implements OnModuleInit {
     }
   }
 
-  private async createAdminUser() {
-     
+  private async createAdminUser() {    
 
     const adminRole = await this.roleModel.findOne({ name: 'admin' });
     if (adminRole) {

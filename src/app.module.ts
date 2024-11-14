@@ -15,7 +15,9 @@ import { UserModule } from './users/users.module';
 import { AuthService } from './auth/auth.service';
 import { AuthController } from './auth/auth.controller';
 import { AuthModule } from './auth/auth.module';
-import { SharedModule } from './auth/shared.module';
+import { SharedModule } from './authjwt/shared.module';
+import { PassportModule } from '@nestjs/passport';
+
 
 @Module({
   imports: [
@@ -23,6 +25,7 @@ import { SharedModule } from './auth/shared.module';
     ConfigModule.forRoot({
       isGlobal: true, // makes ConfigModule available application-wide
     }),
+    PassportModule.register({ session: false }),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
@@ -40,7 +43,6 @@ import { SharedModule } from './auth/shared.module';
     CategoriesModule,    
     FoodItemsModule,
     AnalyticsModule,
-   
     
        
   ],
