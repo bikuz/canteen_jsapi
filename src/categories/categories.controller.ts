@@ -8,27 +8,45 @@ export class CategoriesController {
 
     @Post()
     async create(@Body() createCategoryDto: CreateCategoryDto) {
-        return this.categoryService.create(createCategoryDto);
+        // Ensure the image is either set from the DTO or default to `null`
+        const categoryData = {
+            ...createCategoryDto,
+            image: createCategoryDto.image ?? null,  
+        };
+        return this.categoryService.create(categoryData);
     }
 
     @Get()
     async findAll() {
-        return this.categoryService.findAll();
+        // Fetch all categories and ensure each has an `image` property
+        const categories = await this.categoryService.findAll();
+        return categories.map(category => ({
+            ...category,
+            image: category.image ?? null,  
+        }));
     }
 
     @Get(':id')
     async findOne(@Param('id') id: string) {
-        return this.categoryService.findOne(id);
+        const category = await this.categoryService.findOne(id);
+        return {
+            ...category,
+            image: category.image ?? null,  
+        };
     }
 
     @Patch(':id')
-    async update(@Param('id') id: string, @Body() updateOrderDto: UpdateCategoryDto) {
-        return this.categoryService.update(id, updateOrderDto);
+    async update(@Param('id') id: string, @Body() updateCategoryDto: UpdateCategoryDto) {
+        // Ensure the `image` is either provided in the DTO or default to `null`
+        const updatedData = {
+            ...updateCategoryDto,
+            image: updateCategoryDto.image ?? null,  
+        };
+        return this.categoryService.update(id, updatedData);
     }
 
     @Delete(':id')
     async remove(@Param('id') id: string) {
         return this.categoryService.remove(id);
     }
-
 }
