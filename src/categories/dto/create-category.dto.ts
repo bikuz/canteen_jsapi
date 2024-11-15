@@ -6,8 +6,7 @@ export class CreateCategoryDto {
   @IsString()
   name: string;
 
-
-  @IsString()
   @IsOptional()
-  image: string | null;
+  @IsString()
+  image: string | null;  // This will store the file path after upload
 }
