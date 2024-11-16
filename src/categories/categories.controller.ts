@@ -164,8 +164,8 @@ export class CategoriesController {
                 imagePath = updateCategoryDto.image || null;
             }
             const updatedCat= await this.categoryService.update(id, { ...updateCategoryDto, image: imagePath });
-            return {...updatedCat.toObject(),image:`${baseUrl}/${imagePath}`};
-            
+            return {...updatedCat,image:`${baseUrl}/${updatedCat.image}`};
+
             // const updatedData = {
             //     ...updateCategoryDto,
             //     image: updateCategoryDto.image ?? null,  
