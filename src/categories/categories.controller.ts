@@ -50,12 +50,15 @@ export class CategoriesController {
     async create(
         @Body() createCategoryDto: CreateCategoryDto,
         @UploadedFile() image: Express.Multer.File,
+        @Req() req: Request
     ) {
         try {
+            const baseUrl = `${req.protocol}://${req.get('host')}`;
             // Ensure the image path is set if an image file was uploaded
             const imagePath = image ? `${CategoriesController.imagePath}/${image.filename}` : null;
             // Save the category with the image path
-            return await this.categoryService.create({ ...createCategoryDto, image: imagePath });
+            const catgory= await this.categoryService.create({ ...createCategoryDto, image: imagePath });
+            return {...catgory,image:`${baseUrl}/${catgory.image}`};
         } catch (error) {
             throw new HttpException('Error creating category', HttpStatus.INTERNAL_SERVER_ERROR);
         }
