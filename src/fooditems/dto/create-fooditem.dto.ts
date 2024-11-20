@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsString, IsNumber, IsEnum, IsOptional, IsArray, IsMongoId } from 'class-validator';
+import { IsNotEmpty, IsString, IsNumber, IsEnum, IsOptional, IsArray,IsBoolean, IsMongoId } from 'class-validator';
 
 export class CreateFoodItemDto {
   @IsNotEmpty()
@@ -10,23 +10,33 @@ export class CreateFoodItemDto {
   description: string;
 
   @IsNotEmpty()
-  @IsNumber()
-  price: number;
-
-  @IsNotEmpty()
   @IsMongoId()
   category: string;
 
   @IsNotEmpty()
-  @IsEnum(['single', 'combo', 'buffet'])
-  type: string;
+  @IsNumber()
+  price: number;
+
+  // @IsNotEmpty()
+  // @IsEnum(['single', 'combo', 'buffet'])
+  // type: string;
 
   @IsOptional()
-  @IsArray()
-  @IsMongoId({ each: true })
-  comboItems?: string[];
-
-  @IsNotEmpty()
   @IsString()
-  filename: string;
+  image: string | null;  
+
+  @IsBoolean()
+  isAvailable: boolean;
+
+  @IsArray()
+  @IsOptional()
+  @IsString({ each: true })
+  tags: string[] | null;
+  
+  // Fields for the OrderingTimeframe
+  @IsNumber()
+  orderingStartTime: number; // time in seconds (e.g., 32400 for 09:00)
+
+  @IsNumber()
+  orderingEndTime: number; // time in seconds (e.g., 32400 for 09:00)
 }

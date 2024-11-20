@@ -1,8 +1,14 @@
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+
 import { Controller, Get, Post, Body, Param, Put, Patch, Delete } from '@nestjs/common';
 import { UploadedFile, UseInterceptors, Req, HttpException, HttpStatus } from '@nestjs/common';
 
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto';
+import { FoodItem } from '../fooditems/fooditems.model';
+import { OrderTimeFrame } from '../ordertimeframe/ordertimeframe.model';
+import { OrderTimeFrameService } from '../ordertimeframe/ordertimeframe.service';
 
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -16,7 +22,11 @@ export class CategoriesController {
     
     private static readonly imagePath = 'assets/images'; 
 
-    constructor(private readonly categoryService: CategoriesService) {}
+    constructor(
+      private readonly categoryService: CategoriesService,
+      private readonly orderTimeFrameService:OrderTimeFrameService,
+      @InjectModel(OrderTimeFrame.name) private orderTimeFrameModel: Model<OrderTimeFrame>,
+    ) {}
 
     @Post()
     @UseInterceptors(FileInterceptor('image',{
@@ -56,11 +66,32 @@ export class CategoriesController {
             const baseUrl = `${req.protocol}://${req.get('host')}`;
             // Ensure the image path is set if an image file was uploaded
             const imagePath = image ? `${CategoriesController.imagePath}/${image.filename}` : null;
+            
             // Save the category with the image path
-            const catgory= await this.categoryService.create({ ...createCategoryDto, image: imagePath });
+            const catgory= await this.categoryService.create({
+               ...createCategoryDto,
+                image: imagePath
+                });
+
+              // check if stratTime or endTime is zero
+              if (
+                createCategoryDto.orderingStartTime > 0 &&
+                createCategoryDto.orderingEndTime > 0
+              ) {
+                const orderingTimeframe = await this.orderTimeFrameService.create({
+                  orderingStartTime: createCategoryDto.orderingStartTime,
+                  orderingEndTime: createCategoryDto.orderingEndTime,
+                  isActive: createCategoryDto.isOrderTimeFrameActive,
+                  applicableTo: 'category', // Indicating that this applies to the category
+                  applicableId: catgory._id.toString(),
+                });
+              
+                await orderingTimeframe.save();
+              }
+
             return {...catgory.toObject(),image:`${baseUrl}/${catgory.image}`};
         } catch (error) {
-            throw new HttpException('Error creating category', HttpStatus.INTERNAL_SERVER_ERROR);
+            throw new HttpException(error.message ||'Error creating category', error.status || HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
         // // Ensure the image is either set from the DTO or default to `null`
@@ -73,41 +104,62 @@ export class CategoriesController {
 
     @Get()
     async findAll(@Req() req: Request) {
-        // Fetch all categories and ensure each has an `image` property
-        // const categories = await this.categoryService.findAll();
-        // return categories.map(category => ({
-        //     ...category,
-        //     image: category.image ?? null,  
-        // }));
+       
         try {
             const baseUrl = `${req.protocol}://${req.get('host')}`;
             const categories = await this.categoryService.findAll();
-            return categories.map((category) => ({
-              ...category,
-              image: category.image ? `${baseUrl}/${category.image}` : null,
-            }));
-            // return categories;
+            // return categories.map((category) => ({
+            //   ...category,
+            //   image: category.image ? `${baseUrl}/${category.image}` : null,
+            // }));
+             
+            // Map through categories and add isOrderingAllowed for each
+            const categoriesWithOrdering = await Promise.all(
+              categories.map(async (category) => {
+                const ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('category', category._id.toString());
+                const isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
+                return {
+                  ...category, // Convert category to plain object
+                  image: category.image ? `${baseUrl}/${category.image}` : null,
+                  orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
+                  orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
+                  isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
+                  isOrderingAllowed, // Add the isOrderingAllowed field
+                };
+              }),
+            );
+
+            return categoriesWithOrdering;
+            
           } catch (error) {
-            throw new HttpException('Error fetching categories', HttpStatus.INTERNAL_SERVER_ERROR);
+            throw new HttpException( 
+              error.message ||'Error fetching categories', 
+              error.status ||HttpStatus.INTERNAL_SERVER_ERROR);
           }
     }
 
     @Get(':id')
     async findOne(@Param('id') id: string, @Req() req: Request) {
-        // const category = await this.categoryService.findOne(id);
-        // return {
-        //     ...category,
-        //     image: category.image ?? null,  
-        // };
+
         try {
             const baseUrl = `${req.protocol}://${req.get('host')}`;
             const category = await this.categoryService.findOne(id);
             if (!category) {
               throw new HttpException('Category not found', HttpStatus.NOT_FOUND);
             }
+
+            const ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('category', id);
+            // Call OrderingTimeframeService to check if ordering is allowed for this category
+            const isOrderingAllowed=await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
+            
+
             return {
               ...category,
               image: category.image ? `${baseUrl}/${category.image}` : null,
+              orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
+              orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
+              isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
+              isOrderingAllowed
             };
           } catch (error) {
             throw new HttpException(error.message, error.status || HttpStatus.INTERNAL_SERVER_ERROR);
@@ -160,20 +212,41 @@ export class CategoriesController {
 
             let imagePath = category.image;;
             const baseUrl = `${req.protocol}://${req.get('host')}`;
+
             // If a new image is uploaded, process it and replace the old one
             if (image) {
                 // Simply use the image path generated by Multer
                 imagePath = `${CategoriesController.imagePath}/${image.filename}`;
             } 
 
-            const updatedCat= await this.categoryService.update(id, { ...updateCategoryDto, image: imagePath });
+            const updateCatData={ ...updateCategoryDto, image: imagePath };
+
+            if (updateCategoryDto.orderingStartTime >0 && updateCategoryDto.orderingEndTime > 0){
+              const orderingTimeframeData = {
+                orderingStartTime: updateCategoryDto.orderingStartTime,
+                orderingEndTime: updateCategoryDto.orderingEndTime,
+                isActive: updateCategoryDto.isOrderTimeFrameActive,
+                applicableTo: 'category',  
+                applicableId: id,              
+              };
+
+              const existOrderTimeFrame = await this.orderTimeFrameModel.findOne({ applicableId: id });
+              if (existOrderTimeFrame) {
+                // ordering time frame already exists, update it
+                await this.orderTimeFrameService.update(existOrderTimeFrame._id.toString(), orderingTimeframeData);
+              } else {
+                // no ordering time frame exists, create a new one
+                const newOrderingTimeframe = await this.orderTimeFrameService.create(orderingTimeframeData);
+              }
+
+            }
+
+            const updatedCat= await this.categoryService.update(id, updateCatData);
+
+
             return {...updatedCat,image:`${baseUrl}/${updatedCat.image}`};
 
-            // const updatedData = {
-            //     ...updateCategoryDto,
-            //     image: updateCategoryDto.image ?? null,  
-            // };
-            // return this.categoryService.update(id, updatedData);
+
         } catch (error) {
             throw new HttpException(
                 error.message ||'Error updating category', 

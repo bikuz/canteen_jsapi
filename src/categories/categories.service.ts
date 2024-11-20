@@ -4,12 +4,14 @@ import { Model } from 'mongoose';
 import { Category } from './categories.model';
 import { FoodItem } from  '../fooditems/fooditems.model';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto';
+import { OrderTimeFrameService } from '../ordertimeframe/ordertimeframe.service';
 
 @Injectable()
 export class CategoriesService {
     constructor(
         @InjectModel(Category.name) private categoryModel: Model<Category>,
-        @InjectModel(FoodItem.name) private foodItemModel: Model<FoodItem>
+        @InjectModel(FoodItem.name) private foodItemModel: Model<FoodItem>,
+        private readonly orderTimeFrameService:OrderTimeFrameService,
     ) {}
 
     async create(createCategoryDto: CreateCategoryDto): Promise<Category> {
@@ -65,14 +67,10 @@ export class CategoriesService {
 
     // async remove(id: string): Promise<Category> {
     async remove(id: string) {
-        // const deletedCategory = await this.categoryModel.findByIdAndDelete(id).lean().exec();
-        // if (!deletedCategory) {
-        //     throw new NotFoundException(`Category with ID #${id} not found`);
-        // }
-        // return deletedCategory;
+
         
         try{
-             // Check if there are any products that reference the category
+             // Check if there are any fooditem that reference the category
             const relatedFoodItems = await this.foodItemModel.countDocuments({ category: id });
             if (relatedFoodItems > 0) {
                 // throw an error
@@ -81,6 +79,9 @@ export class CategoriesService {
                 // Or, we could delete all related products:
                 // await this.foodItemModel.deleteMany({ category: id });
             }
+
+            // delete associate OrderTimeFrame
+            this.orderTimeFrameService.removeOrderTimeframe('category',id);
 
             // Proceed to delete the category
             const result = await this.categoryModel.findByIdAndDelete(id);

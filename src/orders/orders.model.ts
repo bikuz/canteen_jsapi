@@ -23,13 +23,13 @@ export class Order extends Document {
   createdAt: Date;
 
   @Prop({ type: Date })
-  completedAt: Date;
+  completedAt: Date | null;
 
   @Prop({ type: Date })
-  cancelledAt: Date;
+  cancelledAt: Date | null;
 
   @Prop({ type: String })
-  cancelReason: string;
+  cancelReason: string | null;
 }
 
 export const OrderSchema = SchemaFactory.createForClass(Order);

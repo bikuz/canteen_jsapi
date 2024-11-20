@@ -3,29 +3,36 @@ import { Document, Types } from 'mongoose';
 
 @Schema()
 export class FoodItem extends Document {
+
   @Prop({ required: true })
   name: string;
 
-  @Prop({ required: true })
-  description: string;
-
-  @Prop({ required: true })
-  price: number;
+  // e.g if 'Buffet', description can be 'Ceral Daal + Chicken + Potato curry + Rice'
+  // e.g if 'Combo', description cane be 'Burger + Fries + Coke'
+  @Prop() 
+  description: string | null;
 
   @Prop({ type: Types.ObjectId, ref: 'Category' })
   category: Types.ObjectId;
 
-  @Prop({ required: true, enum: ['single', 'combo' , 'buffet'] })
-  type: string; // 'single', 'combo' , 'Buffet'
-
-  @Prop({ type: [{ type: Types.ObjectId, ref: 'FoodItem' }] })
-  comboItems: Types.ObjectId[]; // Array of FoodItem IDs for combo offers
-
   @Prop({ required: true })
-  filename: string;
+  price: number;
+
+  @Prop() 
+  image: string | null;
+
+  @Prop({ default: true })
+  isAvailable: boolean;
+
+  // e.g Array of tags like 'Cuisine','Apitizer', 'Veg', 'Non-Veg', 'Vegan', 'gluten-free', 'sugar-free'
+  @Prop({ type: [String], default: null }) 
+  tags: string[] | null;
 
   @Prop({ default: Date.now })
   createdAt: Date;
+
+  // @Prop({ type: Types.ObjectId, ref: 'OrderTimeFrame' })
+  // orderingTimeframe?:  Types.ObjectId;
 }
 
 export const FoodItemSchema = SchemaFactory.createForClass(FoodItem);

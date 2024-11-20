@@ -19,6 +19,9 @@ import { AuthController } from './auth/auth.controller';
 import { AuthModule } from './auth/auth.module';
 import { SharedModule } from './authjwt/shared.module';
 import { PassportModule } from '@nestjs/passport';
+import { BuffetModule } from './buffet/buffet.module';
+import { DiscountModule } from './discount/discount.module';
+import { OrderTimeFrameModule } from './ordertimeframe/ordertimeframe.module';
 
 
 @Module({
@@ -49,6 +52,9 @@ import { PassportModule } from '@nestjs/passport';
     CategoriesModule,    
     FoodItemsModule,
     AnalyticsModule,
+    BuffetModule,
+    DiscountModule,
+    OrderTimeFrameModule,
     
        
   ],
