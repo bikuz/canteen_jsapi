@@ -256,6 +256,13 @@ export class CategoriesController {
 
     @Delete(':id')
     async remove(@Param('id') id: string) {
-        return this.categoryService.remove(id);
+        try{
+          return this.categoryService.remove(id);
+        }catch(error){
+          throw new HttpException(
+            error.message || 'Error deleting category',
+            error.status || HttpStatus.INTERNAL_SERVER_ERROR
+          );
+        }
     }
 }

@@ -15,12 +15,6 @@ export class Category extends Document {
   @Prop({ default: Date.now })
   createdAt: Date;
 
-  // @Prop({ type: Types.ObjectId, ref: 'OrderTimeFrame' })
-  // orderingTimeframe?:  Types.ObjectId; // Optional reference to an ordering timeframe
-
-  // @Prop({ default: false })
-  // isOrderingAllowed: boolean;
-
 }
 
 export const CategorySchema = SchemaFactory.createForClass(Category);

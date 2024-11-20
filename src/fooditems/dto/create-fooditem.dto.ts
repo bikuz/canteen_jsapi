@@ -5,9 +5,9 @@ export class CreateFoodItemDto {
   @IsString()
   name: string;
 
-  @IsNotEmpty()
+  @IsOptional()
   @IsString()
-  description: string;
+  description: string|null;
 
   @IsNotEmpty()
   @IsMongoId()
@@ -17,16 +17,13 @@ export class CreateFoodItemDto {
   @IsNumber()
   price: number;
 
-  // @IsNotEmpty()
-  // @IsEnum(['single', 'combo', 'buffet'])
-  // type: string;
-
   @IsOptional()
   @IsString()
   image: string | null;  
 
   @IsBoolean()
-  isAvailable: boolean;
+  @IsOptional()
+  isAvailable: boolean=true;
 
   @IsArray()
   @IsOptional()
@@ -35,8 +32,10 @@ export class CreateFoodItemDto {
   
   // Fields for the OrderingTimeframe
   @IsNumber()
-  orderingStartTime: number; // time in seconds (e.g., 32400 for 09:00)
+  @IsOptional()
+  orderingStartTime?: number; // time in seconds (e.g., 32400 for 09:00)
 
   @IsNumber()
-  orderingEndTime: number; // time in seconds (e.g., 32400 for 09:00)
+  @IsOptional()
+  orderingEndTime?: number; // time in seconds (e.g., 32400 for 09:00)
 }

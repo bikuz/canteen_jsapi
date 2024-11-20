@@ -54,7 +54,7 @@ export class OrderTimeFrameService {
         }
     }
 
-    async findOrderTimeframe(entityType: string, entityId: string){
+    async findOrderTimeframe(entityType: string, entityId: string): Promise<OrderTimeFrame>{
       try{
         return await this.orderTimeFrameModel.findOne({
           applicableTo: entityType,

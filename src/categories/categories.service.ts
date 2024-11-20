@@ -67,8 +67,6 @@ export class CategoriesService {
 
     // async remove(id: string): Promise<Category> {
     async remove(id: string) {
-
-        
         try{
              // Check if there are any fooditem that reference the category
             const relatedFoodItems = await this.foodItemModel.countDocuments({ category: id });
