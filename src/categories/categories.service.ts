@@ -15,35 +15,48 @@ export class CategoriesService {
     ) {}
 
     async create(createCategoryDto: CreateCategoryDto): Promise<Category> {
-        // const categoryData = {
-        //     ...createCategoryDto,
-        //     image: createCategoryDto.image ?? null,
-        // };
-        // const createdCategory = new this.categoryModel(categoryData);
-        const createdCategory = new this.categoryModel(createCategoryDto);
-        return createdCategory.save();
+        try{
+            // const categoryData = {
+            //     ...createCategoryDto,
+            //     image: createCategoryDto.image ?? null,
+            // };
+            // const createdCategory = new this.categoryModel(categoryData);
+            const createdCategory = new this.categoryModel(createCategoryDto);
+            return createdCategory.save();
+        }catch(error){
+            throw new Error('Error createing caetgory');
+        }
     }
 
     async findAll(): Promise<Category[]> {
-        // Use lean() to return plain JavaScript objects that match the Category type
-        const categories = await this.categoryModel.find().lean().exec();
-        // return categories.map(category => ({
-        //     ...category,
-        //     image: category.image ?? null,
-        // }));
-        return categories;
+        try{
+            // Use lean() to return plain JavaScript objects that match the Category type
+            const categories = await this.categoryModel.find().lean().exec();
+            // return categories.map(category => ({
+            //     ...category,
+            //     image: category.image ?? null,
+            // }));
+            return categories;
+        }catch(error){
+            throw new Error('Error finding categories');
+        }
     }
 
     async findOne(id: string): Promise<Category> {
-        const category = await this.categoryModel.findById(id).lean().exec();
-        if (!category) {
-            throw new NotFoundException(`Category with ID #${id} not found`);
+        try{
+            const category = await this.categoryModel.findById(id).lean().exec();
+            if (!category) {
+                throw new NotFoundException(`Category with ID #${id} not found`);
+            }
+            // return {
+            //     ...category,
+            //     image: category.image ?? null,
+            // };
+            return category;
+        }catch(error){
+            throw new Error('Error updating category');
         }
-        // return {
-        //     ...category,
-        //     image: category.image ?? null,
-        // };
-        return category;
+        
     }
 
     async update(id: string, updateCategoryDto: UpdateCategoryDto): Promise<Category> {
@@ -56,13 +69,17 @@ export class CategoriesService {
         //     throw new NotFoundException(`Category with ID #${id} not found`);
         // }
         // return existingCategory;
-        const updatedCategory = await this.categoryModel.findByIdAndUpdate(id, updateCategoryDto, {
-            new: true, lean: true
-          }).exec();
-          if (!updatedCategory) {
-            throw new NotFoundException(`Category with ID ${id} not found`);
-          }
-          return updatedCategory;
+        try{
+            const updatedCategory = await this.categoryModel.findByIdAndUpdate(id, updateCategoryDto, {
+                new: true, lean: true
+              }).exec();
+              if (!updatedCategory) {
+                throw new NotFoundException(`Category with ID ${id} not found`);
+              }
+              return updatedCategory;
+        }catch(error){
+            throw new Error('Error updating category');
+        }
     }
 
     // async remove(id: string): Promise<Category> {
