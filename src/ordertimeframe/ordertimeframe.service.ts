@@ -46,17 +46,15 @@ export class OrderTimeFrameService {
     }
 
     async findOrderTimeframe(entityType: string, entityId: string): Promise<OrderTimeFrame>{
-      
-      const ordertimeframe = await this.orderTimeFrameModel.findOne({
+      try{
+        return await this.orderTimeFrameModel.findOne({
           applicableTo: entityType,
           applicableId: entityId,
-        });
-
-      if (ordertimeframe) {
-          throw new NotFoundException(`No OrderTimeFrame found with entityType: ${entityType}, enttityID: ${entityId}`);
+        }).exec();
+      }catch(error){
+        // throw new NotFoundException(`No OrderTimeFrame found with entityType: ${entityType}, enttityID: ${entityId}`);
+        throw new Error(`Error fetching OrderTimeFrame: ${error.message}`);
       }
-      return ordertimeframe;  
-      
     }
 
     async remove(id: string): Promise<any>;
@@ -86,7 +84,7 @@ export class OrderTimeFrameService {
           return `OrderTimeFrame for entityType: ${param1} and entityId: ${param2} has been removed successfully.`;
         }
       } catch (error) {
-        throw new Error('Error removing OrderTimeFrame');
+        throw new Error(`Error removing OrderTimeFrame: ${error.message}`);
       }
     }
       
