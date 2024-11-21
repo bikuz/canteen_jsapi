@@ -91,7 +91,9 @@ export class CategoriesController {
 
             return {...catgory.toObject(),image:`${baseUrl}/${catgory.image}`};
         } catch (error) {
-            throw new HttpException(error.message ||'Error creating category', error.status || HttpStatus.INTERNAL_SERVER_ERROR);
+            throw new HttpException(
+              error.message ||'Error creating category',
+              error.status || HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
         // // Ensure the image is either set from the DTO or default to `null`
