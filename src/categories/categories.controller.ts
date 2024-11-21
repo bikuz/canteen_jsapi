@@ -6,9 +6,11 @@ import { UploadedFile, UseInterceptors, Req, HttpException,NotFoundException, Ht
 
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto';
-// import { FoodItem } from '../fooditems/fooditems.model';
+import { FoodItem } from '../fooditems/fooditems.model';
+import { FoodItemsService } from '../fooditems/fooditems.service';
 import { OrderTimeFrame } from '../ordertimeframe/ordertimeframe.model';
 import { OrderTimeFrameService } from '../ordertimeframe/ordertimeframe.service';
+
 
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -25,6 +27,7 @@ export class CategoriesController {
     constructor(
       private readonly categoryService: CategoriesService,
       private readonly orderTimeFrameService:OrderTimeFrameService,
+      private readonly foodItemService:FoodItemsService,
       @InjectModel(OrderTimeFrame.name) private orderTimeFrameModel: Model<OrderTimeFrame>,
     ) {}
 
@@ -265,11 +268,31 @@ export class CategoriesController {
     }
 
 
+    @Get('/:id/fooditems')
+    async fooditemsByCategory(@Param('id') id: string){
+        // here id belongs to category id
+        try{
+            return await this.foodItemService.findByFields({
+                'category':id
+            });
+        }catch(error){
+            if (error instanceof NotFoundException) {
+                throw error;
+            }
+            throw new HttpException(
+                error.message,
+                error.status || HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
     @Delete(':id')
     async remove(@Param('id') id: string) {
         try{
           return this.categoryService.remove(id);
         }catch(error){
+          if (error instanceof NotFoundException) {
+              throw error;
+          }
           throw new HttpException(
             error.message || 'Error deleting category',
             error.status || HttpStatus.INTERNAL_SERVER_ERROR

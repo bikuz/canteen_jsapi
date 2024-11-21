@@ -12,7 +12,8 @@ import { OrderTimeFrameModule } from '../ordertimeframe/ordertimeframe.module';
     OrderTimeFrameModule, // Import the OrderTimeFrameModule
   ],
   providers: [FoodItemsService],
-  controllers: [FooditemsController]
+  controllers: [FooditemsController],
+  exports: [FoodItemsService,MongooseModule],
 })
 export class FoodItemsModule {}
 

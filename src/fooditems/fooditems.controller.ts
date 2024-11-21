@@ -26,8 +26,6 @@ export class FooditemsController {
         @InjectModel(OrderTimeFrame.name) private orderTimeFrameModel: Model<OrderTimeFrame>,
     ){}
 
-   
-
     @Post()
     @UseInterceptors(FileInterceptor('image',{
         storage:diskStorage({
