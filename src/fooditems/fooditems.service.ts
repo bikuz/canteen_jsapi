@@ -3,10 +3,14 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { FoodItem } from './fooditems.model';
 import { CreateFoodItemDto, UpdateFoodItemDto } from './dto';
+import { OrderTimeFrameService } from '../ordertimeframe/ordertimeframe.service';
 
 @Injectable()
 export class FoodItemsService {
-    constructor(@InjectModel(FoodItem.name) private foodItemModel:Model<FoodItem>){}
+    constructor(
+        @InjectModel(FoodItem.name) private foodItemModel:Model<FoodItem>,
+        private readonly orderTimeFrameService:OrderTimeFrameService,
+    ){}
 
     async create(createFoodItemDto: CreateFoodItemDto): Promise<FoodItem> {
         try {
@@ -21,7 +25,7 @@ export class FoodItemsService {
         const existingFoodItem = await this.foodItemModel.findByIdAndUpdate(
             id,
             updateFoodItemDto,
-            { new: true },
+            { new: true, lean: true },
         ).exec();
         if (!existingFoodItem) {
             throw new NotFoundException(`FoodItem #${id} not found`);
@@ -31,14 +35,14 @@ export class FoodItemsService {
 
     async findAll(): Promise<FoodItem[]> {
         try {
-            return await this.foodItemModel.find().populate('category').exec();
+            return await this.foodItemModel.find().populate('category').lean().exec();
         } catch (error) {
             throw new Error(`Error fetching food items: ${error.message}`);
         }
     }
 
     async findOne(id: string): Promise<FoodItem> {
-        const foodItem = await this.foodItemModel.findById(id).populate('category').exec();
+        const foodItem = await this.foodItemModel.findById(id).populate('category').lean().exec();
         if (!foodItem) {
             throw new NotFoundException(`FoodItem #${id} not found`);
         }
@@ -55,11 +59,19 @@ export class FoodItemsService {
     
 
     async remove(id: string): Promise<FoodItem> {
-        const deletedFoodItem = await this.foodItemModel.findByIdAndDelete(id).exec();
-        if (!deletedFoodItem) {
-            throw new NotFoundException(`FoodItem #${id} not found`);
+        try{
+            // delete associate OrderTimeFrame
+            this.orderTimeFrameService.remove('category',id);
+
+            // proceed to delete fooditem
+            const deletedFoodItem = await this.foodItemModel.findByIdAndDelete(id).exec();
+            if (!deletedFoodItem) {
+                throw new NotFoundException(`FoodItem #${id} not found`);
+            }
+            return deletedFoodItem;
+        }catch(error){
+            throw new Error('Error deleting FoodItem');
         }
-        return deletedFoodItem;
     }
 
 }

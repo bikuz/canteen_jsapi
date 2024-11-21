@@ -105,7 +105,7 @@ export class CategoriesService {
             return { message: 'Category deleted successfully' };
         }
         catch(error){
-            throw new Error('Error deleting Category')
+            throw new Error('Error deleting Category');
         }
     }
 }

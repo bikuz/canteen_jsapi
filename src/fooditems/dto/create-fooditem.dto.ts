@@ -38,4 +38,8 @@ export class CreateFoodItemDto {
   @IsNumber()
   @IsOptional()
   orderingEndTime?: number; // time in seconds (e.g., 32400 for 09:00)
+
+  @IsBoolean()
+  @IsOptional()
+  isOrderTimeFrameActive: boolean=false;
 }

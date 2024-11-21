@@ -2,11 +2,11 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
 import { Controller, Get, Post, Body, Param, Put, Patch, Delete } from '@nestjs/common';
-import { UploadedFile, UseInterceptors, Req, HttpException, HttpStatus } from '@nestjs/common';
+import { UploadedFile, UseInterceptors, Req, HttpException,NotFoundException, HttpStatus } from '@nestjs/common';
 
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto';
-import { FoodItem } from '../fooditems/fooditems.model';
+// import { FoodItem } from '../fooditems/fooditems.model';
 import { OrderTimeFrame } from '../ordertimeframe/ordertimeframe.model';
 import { OrderTimeFrameService } from '../ordertimeframe/ordertimeframe.service';
 
@@ -20,7 +20,7 @@ import { Request } from 'express';
 @Controller('categories')
 export class CategoriesController {
     
-    private static readonly imagePath = 'assets/images'; 
+    private static readonly imagePath = 'assets/images/categories'; 
 
     constructor(
       private readonly categoryService: CategoriesService,
@@ -104,70 +104,7 @@ export class CategoriesController {
         // return this.categoryService.create(categoryData);
     }
 
-    @Get()
-    async findAll(@Req() req: Request) {
-       
-        try {
-            const baseUrl = `${req.protocol}://${req.get('host')}`;
-            const categories = await this.categoryService.findAll();
-            // return categories.map((category) => ({
-            //   ...category,
-            //   image: category.image ? `${baseUrl}/${category.image}` : null,
-            // }));
-             
-            // Map through categories and add isOrderingAllowed for each
-            const categoriesWithOrdering = await Promise.all(
-              categories.map(async (category) => {
-                const ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('category', category._id.toString());
-                const isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
-                return {
-                  ...category, // Convert category to plain object
-                  image: category.image ? `${baseUrl}/${category.image}` : null,
-                  orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
-                  orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
-                  isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
-                  isOrderingAllowed, // Add the isOrderingAllowed field
-                };
-              }),
-            );
-
-            return categoriesWithOrdering;
-            
-          } catch (error) {
-            throw new HttpException( 
-              error.message ||'Error fetching categories', 
-              error.status ||HttpStatus.INTERNAL_SERVER_ERROR);
-          }
-    }
-
-    @Get(':id')
-    async findOne(@Param('id') id: string, @Req() req: Request) {
-
-        try {
-            const baseUrl = `${req.protocol}://${req.get('host')}`;
-            const category = await this.categoryService.findOne(id);
-            if (!category) {
-              throw new HttpException('Category not found', HttpStatus.NOT_FOUND);
-            }
-
-            const ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('category', id);
-            // Call OrderingTimeframeService to check if ordering is allowed for this category
-            const isOrderingAllowed=await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
-            
-
-            return {
-              ...category,
-              image: category.image ? `${baseUrl}/${category.image}` : null,
-              orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
-              orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
-              isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
-              isOrderingAllowed
-            };
-          } catch (error) {
-            throw new HttpException(error.message, error.status || HttpStatus.INTERNAL_SERVER_ERROR);
-          }
-    }
-
+    
     @Patch(':id')
     @UseInterceptors(FileInterceptor('image', {
         storage: diskStorage({
@@ -250,11 +187,83 @@ export class CategoriesController {
 
 
         } catch (error) {
+            if (error instanceof NotFoundException) {
+                throw error;
+            }
             throw new HttpException(
                 error.message ||'Error updating category', 
                 error.status ||HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
+    @Get()
+    async findAll(@Req() req: Request) {
+       
+        try {
+            const baseUrl = `${req.protocol}://${req.get('host')}`;
+            const categories = await this.categoryService.findAll();
+            // return categories.map((category) => ({
+            //   ...category,
+            //   image: category.image ? `${baseUrl}/${category.image}` : null,
+            // }));
+             
+            // Map through categories and add isOrderingAllowed for each
+            const categoriesWithOrdering = await Promise.all(
+              categories.map(async (_item) => {
+                const ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('category', _item._id.toString());
+                const isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
+                return {
+                  ..._item, // Convert category to plain object
+                  image: _item.image ? `${baseUrl}/${_item.image}` : null,
+                  orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
+                  orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
+                  isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
+                  isOrderingAllowed, // Add the isOrderingAllowed field
+                };
+              }),
+            );
+
+            return categoriesWithOrdering;
+            
+          } catch (error) {
+            throw new HttpException( 
+              error.message ||'Error fetching categories', 
+              error.status ||HttpStatus.INTERNAL_SERVER_ERROR);
+          }
+    }
+
+    @Get(':id')
+    async findOne(@Param('id') id: string, @Req() req: Request) {
+
+        try {
+            const baseUrl = `${req.protocol}://${req.get('host')}`;
+            const category = await this.categoryService.findOne(id);
+            if (!category) {
+              throw new HttpException('Category not found', HttpStatus.NOT_FOUND);
+            }
+
+            const ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('category', id);
+            // Call OrderingTimeframeService to check if ordering is allowed for this category
+            const isOrderingAllowed=await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
+
+            return {
+              ...category,
+              image: category.image ? `${baseUrl}/${category.image}` : null,
+              orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
+              orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
+              isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
+              isOrderingAllowed
+            };
+          } catch (error) {
+            if (error instanceof NotFoundException) {
+                throw error;
+            }
+            throw new HttpException(
+              error.message,
+              error.status || HttpStatus.INTERNAL_SERVER_ERROR);
+          }
+    }
+
 
     @Delete(':id')
     async remove(@Param('id') id: string) {
