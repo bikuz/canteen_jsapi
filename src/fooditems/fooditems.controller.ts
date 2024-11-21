@@ -9,7 +9,7 @@ export class FooditemsController {
     @Post()
     async create(@Body() createFoodItemDto: CreateFoodItemDto) {
         try {
-            return await this.foodItemService.create(createFoodItemDto);
+            return (await this.foodItemService.create(createFoodItemDto)).toObject();
         } catch (error) {
             throw new HttpException(error.message, HttpStatus.INTERNAL_SERVER_ERROR);
         }

@@ -93,7 +93,7 @@ export class CategoriesService {
             }
 
             // delete associate OrderTimeFrame
-            this.orderTimeFrameService.removeOrderTimeframe('category',id);
+            this.orderTimeFrameService.remove('category',id);
 
             // Proceed to delete the category
             const result = await this.categoryModel.findByIdAndDelete(id);

@@ -36,65 +36,59 @@ export class OrderTimeFrameService {
         return updatedData;
     }
 
-    async remove(id: string) {
-        
-        try{
-            // Proceed to delete the category
-            const result = await this.orderTimeFrameModel.findByIdAndDelete(id).exec();
-             
-            if (!result) {
-                throw new NotFoundException(`OrderTimeFrame #${id} not found`);
-            }
-            
-            return result;
-
-        }
-        catch(error){
-            throw new Error('Error deleting OrderTimeFrame')
-        }
+    
+    async findByFields(filters: Record<string, any>): Promise<OrderTimeFrame[]> {
+      const ordertimeframe = await this.orderTimeFrameModel.find(filters).exec();
+      if (ordertimeframe.length === 0) {
+          throw new NotFoundException(`No OrderTimeFrame found with the given filters: ${JSON.stringify(filters)}`);
+      }
+      return ordertimeframe;
     }
 
     async findOrderTimeframe(entityType: string, entityId: string): Promise<OrderTimeFrame>{
-      try{
-        return await this.orderTimeFrameModel.findOne({
+      
+      const ordertimeframe = await this.orderTimeFrameModel.findOne({
           applicableTo: entityType,
           applicableId: entityId,
         });
-        
-      }catch (error) {
-            throw new Error('Error finding OrderTimeTrame')
-           
-        }
+
+      if (ordertimeframe) {
+          throw new NotFoundException(`No OrderTimeFrame found with entityType: ${entityType}, enttityID: ${entityId}`);
+      }
+      return ordertimeframe;  
+      
     }
 
-    async removeOrderTimeframe(entityType: string, entityId: string) {
-        try {
-          // Check if the ordering timeframe exists
+    async remove(id: string): Promise<any>;
+    async remove(entityType: string, entityId: string): Promise<any>;
+    async remove(param1: string, param2?: string): Promise<any> {
+      try {
+        if (param2 === undefined) {
+          // First overload: remove by ID
+          const result = await this.orderTimeFrameModel.findByIdAndDelete(param1).exec();
+
+          if (!result) {
+            throw new NotFoundException(`OrderTimeFrame #${param1} not found`);
+          }
+
+          return result;
+        } else {
+          // Second overload: remove by entityType and entityId
           const orderingTimeframe = await this.orderTimeFrameModel.findOne({
-            applicableTo: entityType,
-            applicableId: entityId,
+            applicableTo: param1,
+            applicableId: param2,
           });
 
-          // Remove the ordering timeframe
           if (orderingTimeframe) {
-            // Remove the ordering timeframe
-            await this.orderTimeFrameModel.deleteOne({
-              _id: orderingTimeframe._id,
-            });
-          } 
-        //   else {
-        //     console.log('Ordering timeframe does not exist.');
-        //     // throw new NotFoundException(
-        //     //     `OrderTimeTrame not found for entityType: ${entityType} and entityId: ${entityId}`,
-        //     //   );
-        //   }
-      
-          return `OrderTimeTrame for entityType: ${entityType} and entityId: ${entityId} has been removed successfully.`;
-        } catch (error) {
-            throw new Error('Error removing OrderTimeTrame')
-           
+            await this.orderTimeFrameModel.deleteOne({ _id: orderingTimeframe._id });
+          }
+
+          return `OrderTimeFrame for entityType: ${param1} and entityId: ${param2} has been removed successfully.`;
         }
+      } catch (error) {
+        throw new Error('Error removing OrderTimeFrame');
       }
+    }
       
       async isOrderingAllowed(entityType: string, entityId: string): Promise<boolean>;
       async isOrderingAllowed(ordertimeframe: OrderTimeFrame): Promise<boolean>;
