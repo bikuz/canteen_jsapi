@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { FoodItem } from '../fooditems/fooditems.model';
+// import { FoodItem } from '../fooditems/fooditems.model';
 
 @Schema()
 export class Menu extends Document {
@@ -10,8 +10,8 @@ export class Menu extends Document {
   // @Prop({ type: [{ type: Types.ObjectId, ref: 'FoodItem' }] })
   // foodItems: Types.ObjectId[]; // Array of FoodItem IDs
 
-  @Prop({ type: [Types.ObjectId], ref: 'FoodItem', required: true })
-  foodItems: FoodItem[];
+  @Prop({ type: [Types.ObjectId], ref: 'FoodItem' })
+  foodItems: Types.ObjectId[] | null;
 
   @Prop({ required: true })
   date: Date;
@@ -32,8 +32,6 @@ export class Menu extends Document {
   @Prop({ default: Date.now })
   createdAt: Date;
 
-  // @Prop({ type: Types.ObjectId, ref: 'OrderTimeFrame' })
-  // orderingTimeframe?:  Types.ObjectId;
 }
 
 export const MenuSchema = SchemaFactory.createForClass(Menu);

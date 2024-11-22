@@ -163,9 +163,9 @@ export class FooditemsController {
 
             }
 
-            const updatedCat= await this.foodItemService.update(id, updateFooditem);
+            const updatedfood= await this.foodItemService.update(id, updateFooditem);
 
-            return {...updatedCat,image:`${baseUrl}/${updatedCat.image}`};
+            return {...updatedfood,image:`${baseUrl}/${updatedfood.image}`};
 
         } catch (error) {
             if (error instanceof NotFoundException) {
@@ -183,18 +183,17 @@ export class FooditemsController {
             const baseUrl = `${req.protocol}://${req.get('host')}`;
             const fooditems = await this.foodItemService.findAll();
 
-            // Map through categories and add isOrderingAllowed for each
             const fooditemWithOrdering = await Promise.all(
                 fooditems.map(async (_item) => {
                 const ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('fooditem', _item._id.toString());
                 const isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
                 return {
-                    ..._item, // Convert category to plain object
+                    ..._item,  
                     image: _item.image ? `${baseUrl}/${_item.image}` : null,
                     orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
                     orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
                     isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
-                    isOrderingAllowed, // Add the isOrderingAllowed field
+                    isOrderingAllowed,  
                 };
                 }),
             );

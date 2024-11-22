@@ -35,14 +35,16 @@ export class FoodItemsService {
 
     async findAll(): Promise<FoodItem[]> {
         try {
-            return await this.foodItemModel.find().populate('category').lean().exec();
+            // return await this.foodItemModel.find().populate('category').lean().exec();
+            return await this.foodItemModel.find().lean().exec();
         } catch (error) {
             throw new Error(`Error fetching food items: ${error.message}`);
         }
     }
 
     async findOne(id: string): Promise<FoodItem> {
-        const foodItem = await this.foodItemModel.findById(id).populate('category').lean().exec();
+        // const foodItem = await this.foodItemModel.findById(id).populate('category').lean().exec();
+        const foodItem = await this.foodItemModel.findById(id).lean().exec();
         if (!foodItem) {
             throw new NotFoundException(`FoodItem #${id} not found`);
         }
@@ -50,7 +52,8 @@ export class FoodItemsService {
     }
 
     async findByFields(filters: Record<string, any>): Promise<FoodItem[]> {
-        const foodItems = await this.foodItemModel.find(filters).populate('category').exec();
+        // const foodItems = await this.foodItemModel.find(filters).populate('category').exec();
+        const foodItems = await this.foodItemModel.find(filters).lean().exec();
         if (foodItems.length === 0) {
             throw new NotFoundException(`No FoodItems found with the given filters: ${JSON.stringify(filters)}`);
         }
