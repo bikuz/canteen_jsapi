@@ -6,6 +6,8 @@ import { FoodItem } from  '../fooditems/fooditems.model';
 import { CreateCategoryDto, UpdateCategoryDto } from './dto';
 import { OrderTimeFrameService } from '../ordertimeframe/ordertimeframe.service';
 
+import * as fs from 'fs';
+
 @Injectable()
 export class CategoriesService {
     constructor(
@@ -65,6 +67,27 @@ export class CategoriesService {
         }
     }
 
+    async findByPage(page: number, limit: number): Promise<{ categories: Category[]; total: number }> {
+        try {
+            // Calculate the number of documents to skip
+            const skip = (page - 1) * limit;
+    
+            // Fetch the categories with pagination
+            const [categories, total] = await Promise.all([
+                this.categoryModel.find().skip(skip).limit(limit).lean().exec(),
+                this.categoryModel.countDocuments().exec(),
+            ]);
+    
+            // Return paginated data along with the total count
+            return {
+                categories,
+                total,
+            };
+        } catch (error) {
+            throw new Error(`Error fetching categories: ${error.message}`);
+        }
+    }
+
     async findOne(id: string): Promise<Category> {
        
         const category = await this.categoryModel.findById(id).lean().exec();
@@ -95,8 +118,15 @@ export class CategoriesService {
             // delete associate OrderTimeFrame
             this.orderTimeFrameService.remove('category',id);
 
+            
+
             // Proceed to delete the category
             const result = await this.categoryModel.findByIdAndDelete(id);
+
+            //also delete associate image
+            if (result.image && fs.existsSync(result.image)) {
+                fs.unlinkSync(result.image);
+            }
 
             if (!result) {
                 throw new Error('Category not found');

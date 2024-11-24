@@ -18,6 +18,7 @@ import { extname } from 'path';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Request } from 'express';
+import { v4 as uuidv4 } from 'uuid';
 
 @Controller('categories')
 export class CategoriesController {
@@ -46,15 +47,20 @@ export class CategoriesController {
                 // const extension = extname(file.originalname);
                 // callback(null, `${uniqueSuffix}${extension}`);
 
-                // Extract the category name and use it as the filename
-                const categoryName = (req.body.name || 'default').replace(/\s+/g, '-').toLowerCase(); // Normalize name
-                const extension = extname(file.originalname); // Extract extension from the original file name
-                const filename = `${categoryName}${extension}`; // Generate the filename
-                callback(null, filename); // Use category name as filename
+                // // Extract the category name and use it as the filename
+                // const categoryName = (req.body.name || 'default').replace(/\s+/g, '-').toLowerCase(); // Normalize name
+                // const extension = extname(file.originalname); // Extract extension from the original file name
+                // const filename = `${categoryName}${extension}`; // Generate the filename
+                // callback(null, filename); // Use category name as filename
+
+                // Generate a unique filename using UUID
+                const extension = extname(file.originalname); // Extract file extension
+                const uniqueFilename = `${uuidv4()}${extension}`; // Unique filename
+                callback(null, uniqueFilename);
             }
         }),
         fileFilter: (req, file, callback) => {
-            if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
+            if (!file.mimetype.match(/\/(jpg|jpeg|png|webp)$/)) {
               return callback(new HttpException('Only image (jpg,jpeg,png) files are allowed!', HttpStatus.BAD_REQUEST), false);
             }
             callback(null, true);
@@ -77,11 +83,12 @@ export class CategoriesController {
                 });
 
               // check if stratTime or endTime is zero
+              let ordertimeframe=null;
               if (
-                createCategoryDto.orderingStartTime > 0 &&
-                createCategoryDto.orderingEndTime > 0
+                createCategoryDto.orderingStartTime >= 0 &&
+                createCategoryDto.orderingEndTime >= 0
               ) {
-                const orderingTimeframe = await this.orderTimeFrameService.create({
+                ordertimeframe = await this.orderTimeFrameService.create({
                   orderingStartTime: createCategoryDto.orderingStartTime,
                   orderingEndTime: createCategoryDto.orderingEndTime,
                   isActive: createCategoryDto.isOrderTimeFrameActive,
@@ -89,10 +96,17 @@ export class CategoriesController {
                   applicableId: catgory._id.toString(),
                 });
               
-                await orderingTimeframe.save();
+                await ordertimeframe.save();
               }
 
-            return {...catgory.toObject(),image:`${baseUrl}/${catgory.image}`};
+                 
+              return {
+                ...catgory.toObject(),
+                image:`${baseUrl}/${catgory.image}`,
+                orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
+                orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
+                isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
+              };
         } catch (error) {
             throw new HttpException(
               error.message ||'Error creating category',
@@ -123,16 +137,21 @@ export class CategoriesController {
             // const extension = extname(file.originalname);
             // callback(null, `${uniqueSuffix}${extension}`);
 
-            // Extract the category name and use it as the filename
-            const categoryName = (req.body.name || 'default').replace(/\s+/g, '-').toLowerCase(); // Normalize name
-            const extension = extname(file.originalname); // Extract extension from the original file name
-            const filename = `${categoryName}${extension}`; // Generate the filename
-            callback(null, filename);
+            // // Extract the category name and use it as the filename
+            // const categoryName = (req.body.name || 'default').replace(/\s+/g, '-').toLowerCase(); // Normalize name
+            // const extension = extname(file.originalname); // Extract extension from the original file name
+            // const filename = `${categoryName}${extension}`; // Generate the filename
+            // callback(null, filename);
+
+            // Generate a unique filename using UUID
+            const extension = extname(file.originalname); // Extract file extension
+            const uniqueFilename = `${uuidv4()}${extension}`; // Unique filename
+            callback(null, uniqueFilename);
           },
         }),
         fileFilter: (req, file, callback) => {
             // Allow only images (jpg, jpeg, png)
-            if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
+            if (!file.mimetype.match(/\/(jpg|jpeg|png|webp)$/)) {
               return callback(new HttpException('Only image (jpg, jpeg, png) files are allowed!', HttpStatus.BAD_REQUEST), false);
             }
             callback(null, true);
@@ -152,19 +171,29 @@ export class CategoriesController {
                 throw new HttpException('Category not found', HttpStatus.NOT_FOUND);
             }
 
-            let imagePath = category.image;;
+            let imagePath = category.image;
             const baseUrl = `${req.protocol}://${req.get('host')}`;
 
-            // If a new image is uploaded, process it and replace the old one
+            // // If a new image is uploaded, process it and replace the old one
+            // if (image) {
+            //     // Simply use the image path generated by Multer
+            //     imagePath = `${CategoriesController.imagePath}/${image.filename}`;
+            // } 
+
             if (image) {
-                // Simply use the image path generated by Multer
-                imagePath = `${CategoriesController.imagePath}/${image.filename}`;
-            } 
+              // Delete the old image if it exists
+              if (imagePath && fs.existsSync(imagePath)) {
+                  fs.unlinkSync(imagePath);
+              }
+
+              // Use the new image path generated by Multer
+              imagePath = `${CategoriesController.imagePath}/${image.filename}`;
+            }
 
             const updateCatData={ ...updateCategoryDto, image: imagePath };
-
-            if (updateCategoryDto.orderingStartTime >0 && updateCategoryDto.orderingEndTime > 0){
-              const orderingTimeframeData = {
+            let ordertimeframe=null;
+            if (updateCategoryDto.orderingStartTime >=0 && updateCategoryDto.orderingEndTime >=0){
+              ordertimeframe = {
                 orderingStartTime: updateCategoryDto.orderingStartTime,
                 orderingEndTime: updateCategoryDto.orderingEndTime,
                 isActive: updateCategoryDto.isOrderTimeFrameActive,
@@ -175,18 +204,22 @@ export class CategoriesController {
               const existOrderTimeFrame = await this.orderTimeFrameModel.findOne({ applicableId: id });
               if (existOrderTimeFrame) {
                 // ordering time frame already exists, update it
-                await this.orderTimeFrameService.update(existOrderTimeFrame._id.toString(), orderingTimeframeData);
+                await this.orderTimeFrameService.update(existOrderTimeFrame._id.toString(), ordertimeframe);
               } else {
                 // no ordering time frame exists, create a new one
-                const newOrderingTimeframe = await this.orderTimeFrameService.create(orderingTimeframeData);
+                ordertimeframe = await this.orderTimeFrameService.create(ordertimeframe);
               }
 
             }
 
             const updatedCat= await this.categoryService.update(id, updateCatData);
-
-
-            return {...updatedCat,image:`${baseUrl}/${updatedCat.image}`};
+            return {
+              ...updatedCat,
+              image:`${baseUrl}/${updatedCat.image}`,
+              orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
+              orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
+              isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
+            };
 
 
         } catch (error) {
@@ -267,6 +300,50 @@ export class CategoriesController {
           }
     }
 
+    @Get('page/:page/limit/:limit')
+    async findByPage(
+      @Param('page') page: string,
+      @Param('limit') limit: string,
+      @Req() req: Request
+    ){
+      try {
+        const pageNumber = parseInt(page, 10);
+        const limitNumber = parseInt(limit, 10);
+        // Validate the parameters
+        if (isNaN(pageNumber) || isNaN(limitNumber) || pageNumber < 1 || limitNumber < 1) {
+          throw new HttpException('Page and limit must be positive integers.', HttpStatus.BAD_REQUEST);
+        }
+
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const {categories,total} = await this.categoryService.findByPage(pageNumber,limitNumber);
+        
+        const categoriesWithOrdering = await Promise.all(
+          categories.map(async (_item) => {
+            const ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('category', _item._id.toString());
+            const isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
+            return {
+              ..._item, // Convert category to plain object
+              image: _item.image ? `${baseUrl}/${_item.image}` : null,
+              orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
+              orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
+              isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
+              isOrderingAllowed, // Add the isOrderingAllowed field
+              
+            };
+          }),
+        );
+        
+        return {categories:categoriesWithOrdering,total};
+
+      } catch (error) {
+        if (error instanceof NotFoundException) {
+            throw error;
+        }
+        throw new HttpException(
+          error.message,
+          error.status || HttpStatus.INTERNAL_SERVER_ERROR);
+      }
+    }
 
     @Get('/:id/fooditems')
     async fooditemsByCategory(@Param('id') id: string){
