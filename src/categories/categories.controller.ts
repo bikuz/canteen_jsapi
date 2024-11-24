@@ -346,12 +346,31 @@ export class CategoriesController {
     }
 
     @Get('/:id/fooditems')
-    async fooditemsByCategory(@Param('id') id: string){
+    async fooditemsByCategory(@Param('id') id: string, @Req() req: Request){
         // here id belongs to category id
         try{
-            return await this.foodItemService.findByFields({
+            const baseUrl = `${req.protocol}://${req.get('host')}`;
+            const fooditems = await this.foodItemService.findByFields({
                 'category':id
             });
+
+            const categoriesWithOrdering = await Promise.all(
+              fooditems.map(async (_item) => {
+                const ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('fooditem', _item._id.toString());
+                const isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
+                return {
+                  ..._item, // Convert category to plain object
+                  image: _item.image ? `${baseUrl}/${_item.image}` : null,
+                  orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
+                  orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
+                  isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
+                  isOrderingAllowed, // Add the isOrderingAllowed field
+                };
+              }),
+            );
+
+            return categoriesWithOrdering;
+
         }catch(error){
             if (error instanceof NotFoundException) {
                 throw error;
