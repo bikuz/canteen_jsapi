@@ -15,6 +15,7 @@ import { extname } from 'path';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Request } from 'express';
+import { v4 as uuidv4 } from 'uuid';
 
 @Controller('fooditems')
 export class FooditemsController {
@@ -36,19 +37,24 @@ export class FooditemsController {
                 callback(null, FooditemsController.imagePath);
             },
             filename:(req, file, callback)=>{
-                // Extract the fooditem name and use it as the filename
-                const fooditemName = (req.body.name || 'default').replace(/\s+/g, '-').toLowerCase(); // Normalize name
-                const extension = extname(file.originalname); // Extract extension from the original file name
-                const filename = `${fooditemName}${extension}`; // Generate the filename
-                callback(null, filename); // Use fooditem name as filename
+                // // Extract the fooditem name and use it as the filename
+                // const fooditemName = (req.body.name || 'default').replace(/\s+/g, '-').toLowerCase(); // Normalize name
+                // const extension = extname(file.originalname); // Extract extension from the original file name
+                // const filename = `${fooditemName}${extension}`; // Generate the filename
+                // callback(null, filename); // Use fooditem name as filename
+
+                // Generate a unique filename using UUID
+                const extension = extname(file.originalname); // Extract file extension
+                const uniqueFilename = `${uuidv4()}${extension}`; // Unique filename
+                callback(null, uniqueFilename);
             }
         }),
         fileFilter: (req, file, callback) => {
-            if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
+            if (!file.mimetype.match(/\/(jpg|jpeg|png|webp)$/)) {
               return callback(new HttpException('Only image (jpg,jpeg,png) files are allowed!', HttpStatus.BAD_REQUEST), false);
             }
             callback(null, true);
-          },
+        },
     }))
     async create(
         @Body() createFoodItemDto: CreateFoodItemDto,
@@ -67,11 +73,12 @@ export class FooditemsController {
             });
 
              // check if stratTime or endTime is zero
+             let ordertimeframe=null;
              if (
                 createFoodItemDto.orderingStartTime > 0 &&
                 createFoodItemDto.orderingEndTime > 0
               ) {
-                const orderingTimeframe = await this.orderTimeFrameService.create({
+                const ordertimeframe = await this.orderTimeFrameService.create({
                   orderingStartTime: createFoodItemDto.orderingStartTime,
                   orderingEndTime: createFoodItemDto.orderingEndTime,
                   isActive: createFoodItemDto.isOrderTimeFrameActive,
@@ -79,10 +86,16 @@ export class FooditemsController {
                   applicableId: fooditem._id.toString(),
                 });
               
-                await orderingTimeframe.save();
+                await ordertimeframe.save();
               }
 
-            return {...fooditem.toObject(),image:`${baseUrl}/${fooditem.image}`};
+            return {
+                ...fooditem.toObject(),
+                image:`${baseUrl}/${fooditem.image}`,
+                orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
+                orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
+                isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
+            };
 
         } catch (error) {
             throw new HttpException(
@@ -104,16 +117,22 @@ export class FooditemsController {
           },
           filename: (req, file, callback) => {
 
-            // Extract the fooditem name and use it as the filename
-            const fooditemName = (req.body.name || 'default').replace(/\s+/g, '-').toLowerCase(); // Normalize name
-            const extension = extname(file.originalname); // Extract extension from the original file name
-            const filename = `${fooditemName}${extension}`; // Generate the filename
-            callback(null, filename);
+            // // Extract the fooditem name and use it as the filename
+            // const fooditemName = (req.body.name || 'default').replace(/\s+/g, '-').toLowerCase(); // Normalize name
+            // const extension = extname(file.originalname); // Extract extension from the original file name
+            // const filename = `${fooditemName}${extension}`; // Generate the filename
+            // callback(null, filename);
+
+             // Generate a unique filename using UUID
+             const extension = extname(file.originalname); // Extract file extension
+             const uniqueFilename = `${uuidv4()}${extension}`; // Unique filename
+             callback(null, uniqueFilename);
+
           },
         }),
         fileFilter: (req, file, callback) => {
             // Allow only images (jpg, jpeg, png)
-            if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
+            if (!file.mimetype.match(/\/(jpg|jpeg|png|webp)$/)) {
               return callback(new HttpException('Only image (jpg, jpeg, png) files are allowed!', HttpStatus.BAD_REQUEST), false);
             }
             callback(null, true);
@@ -135,14 +154,18 @@ export class FooditemsController {
             let imagePath = fooditem.image;;
             const baseUrl = `${req.protocol}://${req.get('host')}`;
 
-            // If a new image is uploaded, process it and replace the old one
-            if (image) {
-                // Simply use the image path generated by Multer
-                imagePath = `${FooditemsController.imagePath}/${image.filename}`;
-            } 
+             if (image) {
+              // Delete the old image if it exists
+              if (imagePath && fs.existsSync(imagePath)) {
+                  fs.unlinkSync(imagePath);
+              }
+
+              // Use the new image path generated by Multer
+              imagePath = `${FooditemsController.imagePath}/${image.filename}`;
+            }
 
             const updateFooditem={ ...updateFoodItemDto, image: imagePath };
-
+            let ordertimeframe=null;
             if (updateFoodItemDto.orderingStartTime >0 && updateFoodItemDto.orderingEndTime > 0){
               const orderingTimeframeData = {
                 orderingStartTime: updateFoodItemDto.orderingStartTime,
@@ -158,14 +181,20 @@ export class FooditemsController {
                 await this.orderTimeFrameService.update(existOrderTimeFrame._id.toString(), orderingTimeframeData);
               } else {
                 // no ordering time frame exists, create a new one
-                const newOrderingTimeframe = await this.orderTimeFrameService.create(orderingTimeframeData);
+                ordertimeframe = await this.orderTimeFrameService.create(orderingTimeframeData);
               }
 
             }
 
             const updatedfood= await this.foodItemService.update(id, updateFooditem);
 
-            return {...updatedfood,image:`${baseUrl}/${updatedfood.image}`};
+            return {
+                ...updatedfood,
+                image:`${baseUrl}/${updatedfood.image}`,
+                orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
+                orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
+                isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
+            };
 
         } catch (error) {
             if (error instanceof NotFoundException) {
@@ -237,6 +266,51 @@ export class FooditemsController {
         }
     }
 
+    @Get('page/:page/limit/:limit')
+    async findByPage(
+      @Param('page') page: string,
+      @Param('limit') limit: string,
+      @Req() req: Request
+    ){
+      try {
+        const pageNumber = parseInt(page, 10);
+        const limitNumber = parseInt(limit, 10);
+        // Validate the parameters
+        if (isNaN(pageNumber) || isNaN(limitNumber) || pageNumber < 1 || limitNumber < 1) {
+          throw new HttpException('Page and limit must be positive integers.', HttpStatus.BAD_REQUEST);
+        }
+
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const {fooditems,total} = await this.foodItemService.findByPage(pageNumber,limitNumber);
+        
+        const foodItemWithOrdering = await Promise.all(
+            fooditems.map(async (_item) => {
+            const ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('category', _item._id.toString());
+            const isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
+            return {
+              ..._item, // Convert category to plain object
+              image: _item.image ? `${baseUrl}/${_item.image}` : null,
+              orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
+              orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
+              isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
+              isOrderingAllowed, // Add the isOrderingAllowed field
+            };
+          }),
+        );
+        
+        return {fooditems:foodItemWithOrdering,total};
+
+      } catch (error) {
+        if (error instanceof NotFoundException) {
+            throw error;
+        }
+        throw new HttpException(
+          error.message,
+          error.status || HttpStatus.INTERNAL_SERVER_ERROR);
+      }
+    }
+
+
     @Delete(':id')
     async remove(@Param('id') id: string) {
         try {
@@ -251,3 +325,5 @@ export class FooditemsController {
         }
     }
 }
+
+

@@ -60,6 +60,26 @@ export class FoodItemsService {
         return foodItems;
     }
     
+    async findByPage(page: number, limit: number): Promise<{ fooditems: FoodItem[]; total: number }> {
+        try {
+            // Calculate the number of documents to skip
+            const skip = (page - 1) * limit;
+    
+            // Fetch the categories with pagination
+            const [fooditems, total] = await Promise.all([
+                this.foodItemModel.find().skip(skip).limit(limit).lean().exec(),
+                this.foodItemModel.countDocuments().exec(),
+            ]);
+    
+            // Return paginated data along with the total count
+            return {
+                fooditems,
+                total,
+            };
+        } catch (error) {
+            throw new Error(`Error fetching categories: ${error.message}`);
+        }
+    }
 
     async remove(id: string): Promise<FoodItem> {
         try{
