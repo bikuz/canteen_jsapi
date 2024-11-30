@@ -214,21 +214,21 @@ export class FooditemsController {
 
             const fooditemWithOrdering = await Promise.all(
                 fooditems.map(async (_item) => {
-                let ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('fooditem', _item._id.toString());
-                let isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
-                if(isOrderingAllowed){
-                    //check if it is disabled through category
-                    ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('category', _item.category.toString());
-                    isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
-                }
-                return {
-                    ..._item,  
-                    image: _item.image ? `${baseUrl}/${_item.image}` : null,
-                    orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
-                    orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
-                    isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
-                    isOrderingAllowed,  
-                };
+                  let ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('fooditem', _item._id.toString());
+                  let isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
+                  if(isOrderingAllowed){
+                      //check if it is disabled through category
+                      ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('category', _item.category.toString());
+                      isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
+                  }
+                  return {
+                      ..._item,  
+                      image: _item.image ? `${baseUrl}/${_item.image}` : null,
+                      orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
+                      orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
+                      isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
+                      isOrderingAllowed,  
+                  };
                 }),
             );
 

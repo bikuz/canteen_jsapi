@@ -26,8 +26,8 @@ export class MenusController {
   constructor(
     private readonly menusService: MenusService,
     private readonly foodItemService: FoodItemsService,
-    // private readonly orderTimeFrameService:OrderTimeFrameService,
-    // @InjectModel(OrderTimeFrame.name) private orderTimeFrameModel: Model<OrderTimeFrame>,
+    private readonly orderTimeFrameService:OrderTimeFrameService,
+    @InjectModel(OrderTimeFrame.name) private orderTimeFrameModel: Model<OrderTimeFrame>,
   ) {}
 
   @Post()
@@ -276,7 +276,26 @@ async create(
                 }
             });
 
-            return uniqueFoodItems;
+            const fooditemWithOrdering = await Promise.all(
+                uniqueFoodItems.map(async (_item) => {
+                  let ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('fooditem', _item._id.toString());
+                  let isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
+                  if(isOrderingAllowed){
+                      //check if it is disabled through category
+                      ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('category', _item.category.toString());
+                      isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
+                  }
+                  return {
+                      ..._item,  
+                      image: _item.image ? `${baseUrl}/${_item.image}` : null,
+                      orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
+                      orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
+                      isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
+                      isOrderingAllowed,  
+                  };
+                }),
+            );
+            return fooditemWithOrdering;
         } catch (error) {
             return [];
             
@@ -324,7 +343,29 @@ async create(
                 };
             });
 
-            return foodItemsWithAvailability;
+            const fooditemWithOrdering = await Promise.all(
+                foodItemsWithAvailability.map(async (_item) => {
+                  let ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('fooditem', _item._id.toString());
+                  let isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
+                  if(isOrderingAllowed){
+                      //check if it is disabled through category
+                      ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('category', _item.category.toString());
+                      isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
+                  }
+                  return {
+                      ..._item,  
+                      image: _item.image ? `${baseUrl}/${_item.image}` : null,
+                      orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
+                      orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
+                      isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
+                      isOrderingAllowed,  
+                  };
+                }),
+            );
+
+            return fooditemWithOrdering;
+
+            // return foodItemsWithAvailability;
         } catch (error) {
             console.error('Error fetching food items by category:', error);
             return [];
