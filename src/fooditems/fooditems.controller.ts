@@ -178,7 +178,7 @@ export class FooditemsController {
               const existOrderTimeFrame = await this.orderTimeFrameModel.findOne({ applicableId: id });
               if (existOrderTimeFrame) {
                 // ordering time frame already exists, update it
-                await this.orderTimeFrameService.update(existOrderTimeFrame._id.toString(), orderingTimeframeData);
+                ordertimeframe = await this.orderTimeFrameService.update(existOrderTimeFrame._id.toString(), orderingTimeframeData);
               } else {
                 // no ordering time frame exists, create a new one
                 ordertimeframe = await this.orderTimeFrameService.create(orderingTimeframeData);

@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsMongoId, IsArray, ArrayNotEmpty, IsEnum, IsOptional, IsString, IsDate } from 'class-validator';
+import { IsNotEmpty, IsMongoId, IsArray, IsNumber, ArrayNotEmpty, IsEnum, IsOptional, IsString, IsDate } from 'class-validator';
 
 export class CreateOrderDto {
   @IsNotEmpty()
@@ -15,7 +15,17 @@ export class CreateOrderDto {
   @IsNotEmpty({ each: true })
   quantities: number[];
 
+  @IsNotEmpty()
+  @IsNumber()
+  totalPrice: number;
+
   @IsOptional()
-  @IsString()
-  remarks?: string;
+  @IsNumber()
+  token?: number;
+
+  @IsOptional()
+  @IsEnum(['created', 'processing', 'completed', 'cancelled'])
+  status?: string;
+
+
 }

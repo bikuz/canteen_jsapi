@@ -4,17 +4,30 @@ import { Types } from 'mongoose';
 
 @Schema()
 export class Payment extends Document {
+
+  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  customerId: Types.ObjectId;
+
   @Prop({ required: true, type: Types.ObjectId, ref: 'Order' })
   orderId: string;
   
-  @Prop({ required: true, enum: ['cash', 'esewa','khalti'] })
+  @Prop({ required: true, enum: ['cash', 'esewa','khalti','fonepay'] })
   paymentMethod: string; // 'cash', 'eSewa', 'Khalti', 'fonepay'
+
+  @Prop({ required: true, enum: ['pending', 'paid', 'failed'] }) //, 'refunded'
+  paymentStatus: string;
+
+  @Prop({ type: Number, default: null })
+  token: number | null;
 
   @Prop({ required: true })
   amount: number;
 
-  @Prop({ default: Date.now })
-  paymentDate: Date;
+  @Prop({ type: Date, default: null })
+  paymentDate: Date | null;
+
+  @Prop({ type: Date, default: Date.now })
+  createdAt: Date;
 }
 
 export const PaymentSchema = SchemaFactory.createForClass(Payment);

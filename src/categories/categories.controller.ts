@@ -205,7 +205,7 @@ export class CategoriesController {
               const existOrderTimeFrame = await this.orderTimeFrameModel.findOne({ applicableId: id });
               if (existOrderTimeFrame) {
                 // ordering time frame already exists, update it
-                await this.orderTimeFrameService.update(existOrderTimeFrame._id.toString(), ordertimeframe);
+                ordertimeframe = await this.orderTimeFrameService.update(existOrderTimeFrame._id.toString(), ordertimeframe);
               } else {
                 // no ordering time frame exists, create a new one
                 ordertimeframe = await this.orderTimeFrameService.create(ordertimeframe);
