@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import { FoodItem } from '../fooditems/fooditems.model';
 // import { FoodItem } from '../fooditems/fooditems.model';
 
 @Schema()
@@ -7,23 +8,15 @@ export class Menu extends Document {
   @Prop({ required: true })
   name: string;
 
-  // @Prop({ type: [{ type: Types.ObjectId, ref: 'FoodItem' }] })
-  // foodItems: Types.ObjectId[]; // Array of FoodItem IDs
-
   @Prop({ type: [Types.ObjectId], ref: 'FoodItem' })
-  foodItems: Types.ObjectId[] | null;
+  foodItems:FoodItem[]|null;
+  // foodItems: Types.ObjectId[] | null;
 
-  @Prop({ required: true })
-  date: Date;
-
-  @Prop({ enum: ['Daily', 'Weekly', 'Monthly'], default: 'Daily' })
-  scheduleType: string;
-
-  @Prop() 
-  image: string | null;
+  @Prop({ type: [String]})
+  repeatDay: string[]; // Sunday,Monday,Tuesday ...... Saturday
 
   @Prop({ default: true })
-  isAvailable: boolean;
+  isAvailable?: boolean;
 
   // Array of strings for tags like "kids-friendly", "Family-pack", "Jumbo-Pack"
   @Prop({ type: [String], default: null }) 

@@ -72,6 +72,7 @@ export class CategoriesController {
         @Req() req: Request
     ) {
         try {
+          console.log(createCategoryDto);
             const baseUrl = `${req.protocol}://${req.get('host')}`;
             // Ensure the image path is set if an image file was uploaded
             const imagePath = image ? `${CategoriesController.imagePath}/${image.filename}` : null;

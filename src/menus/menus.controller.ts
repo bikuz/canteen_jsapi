@@ -17,156 +17,79 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Request } from 'express';
 
+// FoodItem.find({ tags: { $in: ['vegan', 'gluten-free'] } });
+// This would allow you to find food items that are either vegan or gluten-free.
 @Controller('menus')
 export class MenusController {
-  private static readonly imagePath = 'assets/images/menus'; 
+  // private static readonly imagePath = 'assets/images/menus'; 
 
   constructor(
     private readonly menusService: MenusService,
-    
-    private readonly orderTimeFrameService:OrderTimeFrameService,
-    @InjectModel(OrderTimeFrame.name) private orderTimeFrameModel: Model<OrderTimeFrame>,
+    private readonly foodItemService: FoodItemsService,
+    // private readonly orderTimeFrameService:OrderTimeFrameService,
+    // @InjectModel(OrderTimeFrame.name) private orderTimeFrameModel: Model<OrderTimeFrame>,
   ) {}
 
   @Post()
-  @UseInterceptors(FileInterceptor('image',{
-      storage:diskStorage({
-          destination:(req, file, callback)=>{
-              if (!fs.existsSync(MenusController.imagePath)) {
-                  fs.mkdirSync(MenusController.imagePath, { recursive: true }); // Create directory if it doesn't exist
-              }
-              callback(null, MenusController.imagePath);
-          },
-          filename:(req, file, callback)=>{
-              // Extract the menu name and use it as the filename
-              const menuName = (req.body.name || 'default').replace(/\s+/g, '-').toLowerCase(); // Normalize name
-              const extension = extname(file.originalname); // Extract extension from the original file name
-              const filename = `${menuName}${extension}`; // Generate the filename
-              callback(null, filename); // Use fooditem name as filename
-          }
-      }),
-      fileFilter: (req, file, callback) => {
-          if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
-            return callback(new HttpException('Only image (jpg,jpeg,png) files are allowed!', HttpStatus.BAD_REQUEST), false);
-          }
-          callback(null, true);
-        },
-  }))
-  async create(
+async create(
     @Body() createMenuDto: CreateMenuDto,
-    @UploadedFile() image: Express.Multer.File,
     @Req() req: Request
-  ) {
-    try {
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      // Ensure the image path is set if an image file was uploaded
-      const imagePath = image ? `${MenusController.imagePath}/${image.filename}` : null;
-      
-      // Save the category with the image path
-      const menu = await this.menusService.create({
-          ...createMenuDto,
-          image: imagePath
-      });
+) {
+  try {
+    // console.log('Raw DTO:', createMenuDto);    
+    const menu = await this.menusService.create(createMenuDto);
 
-       // check if stratTime or endTime is zero
-       if (
-        createMenuDto.orderingStartTime > 0 &&
-        createMenuDto.orderingEndTime > 0
-        ) {
-          const orderingTimeframe = await this.orderTimeFrameService.create({
-            orderingStartTime: createMenuDto.orderingStartTime,
-            orderingEndTime: createMenuDto.orderingEndTime,
-            isActive: createMenuDto.isOrderTimeFrameActive,
-            applicableTo: 'menu', // Indicating that this applies to the category
-            applicableId: menu._id.toString(),
-          });
-        
-          await orderingTimeframe.save();
-        }
-
-      return {...menu.toObject(),image:`${baseUrl}/${menu.image}`};
-
-    } catch (error) {
-        throw new HttpException(
-            error.message,
-            error.status || HttpStatus.INTERNAL_SERVER_ERROR);
-    }
+    return {
+      ...menu.toObject(),
+    };
+  } catch (error) {
+    throw new HttpException(
+      error.message,
+      error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+    );
   }
+}
 
   @Patch(':id')
-  @UseInterceptors(FileInterceptor('image', {
-      storage: diskStorage({
-        destination: (req, file, callback) => {
-          
-          if (!fs.existsSync(MenusController.imagePath)) {
-            fs.mkdirSync(MenusController.imagePath, { recursive: true });
-          }
-          callback(null, MenusController.imagePath);
-        },
-        filename: (req, file, callback) => {
-
-          // Extract the menu name and use it as the filename
-          const menuName = (req.body.name || 'default').replace(/\s+/g, '-').toLowerCase(); // Normalize name
-          const extension = extname(file.originalname); // Extract extension from the original file name
-          const filename = `${menuName}${extension}`; // Generate the filename
-          callback(null, filename);
-        },
-      }),
-      fileFilter: (req, file, callback) => {
-          // Allow only images (jpg, jpeg, png)
-          if (!file.mimetype.match(/\/(jpg|jpeg|png)$/)) {
-            return callback(new HttpException('Only image (jpg, jpeg, png) files are allowed!', HttpStatus.BAD_REQUEST), false);
-          }
-          callback(null, true);
-      },
-
-  }))
   async update(
     @Req() req: Request,
     @Param('id') id: string,
     @Body() updateMenuDto: UpdateMenuDto,
-    @UploadedFile() image?: Express.Multer.File,
+    // @UploadedFile() image?: Express.Multer.File,
   ) {
     try {
-      const menu = await this.menusService.findOne(id);
-      if (!menu) {
-          throw new HttpException('Menu not found', HttpStatus.NOT_FOUND);
-      }
-
-      let imagePath = menu.image;;
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-
-      // If a new image is uploaded, process it and replace the old one
-      if (image) {
-          // Simply use the image path generated by Multer
-          imagePath = `${MenusController.imagePath}/${image.filename}`;
-      } 
-
-      const updateMenu={ ...updateMenuDto, image: imagePath };
-
-      if (updateMenuDto.orderingStartTime >0 && updateMenuDto.orderingEndTime > 0){
-        const orderingTimeframeData = {
-          orderingStartTime: updateMenuDto.orderingStartTime,
-          orderingEndTime: updateMenuDto.orderingEndTime,
-          isActive: updateMenuDto.isOrderTimeFrameActive,
-          applicableTo: 'menu',  
-          applicableId: id,              
-        };
-
-        const existOrderTimeFrame = await this.orderTimeFrameModel.findOne({ applicableId: id });
-        if (existOrderTimeFrame) {
-          // ordering time frame already exists, update it
-          await this.orderTimeFrameService.update(existOrderTimeFrame._id.toString(), orderingTimeframeData);
-        } else {
-          // no ordering time frame exists, create a new one
-          const newOrderingTimeframe = await this.orderTimeFrameService.create(orderingTimeframeData);
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const menu = await this.menusService.findOne(id);
+        if (!menu) {
+            throw new HttpException('Menu not found', HttpStatus.NOT_FOUND);
         }
 
-      }
+        // let imagePath = menu.image;;
+        // const baseUrl = `${req.protocol}://${req.get('host')}`;
 
-      const updatedmenu= await this.menusService.update(id, updateMenu);
+        // If a new image is uploaded, process it and replace the old one
+        // if (image) {
+        //     // Simply use the image path generated by Multer
+        //     imagePath = `${MenusController.imagePath}/${image.filename}`;
+        // } 
 
-      return {...updatedmenu,image:`${baseUrl}/${updatedmenu.image}`};
+        const updateMenu={
+            ...updateMenuDto, 
+            //  image: imagePath 
+            };
+
+        const updatedMenu= await this.menusService.update(id, updateMenu);
+       
+        if (updatedMenu.foodItems && Array.isArray(updatedMenu.foodItems)) {
+            updatedMenu.foodItems.forEach(foodItem => {
+                if (foodItem.image) {
+                    // Prepend baseUrl to food item's image URL
+                    foodItem.image = `${baseUrl}/${foodItem.image}`;
+                }
+            });
+        }
+         
+        return updatedMenu;
 
     } catch (error) {
         if (error instanceof NotFoundException) {
@@ -181,26 +104,39 @@ export class MenusController {
   @Get()
   async findAll(@Req() req: Request) {
     try {
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      const menus = await this.menusService.findAll();
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const menus= await this.menusService.findAll();
 
-      const menuWithOrdering = await Promise.all(
-        menus.map(async (_item) => {
-          const ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('fooditem', _item._id.toString());
-          const isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
-          return {
-              ..._item,  
-              image: _item.image ? `${baseUrl}/${_item.image}` : null,
-              orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
-              orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
-              isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
-              isOrderingAllowed,  
-          };
-        }),
-      );
+        // // Process each menu
+        // await Promise.all(menus.map(async (menu) => {
+        //     if (menu.foodItems && Array.isArray(menu.foodItems)) {
+        //     // Fetch foodItems details from foodItemService and prepend the image base URL
+        //     menu.foodItems = await Promise.all(menu.foodItems.map(async (fid) => {
+        //         const foodItem = await this.foodItemService.findOne(fid.toString());
+                
+        //         // If the foodItem has an image, prepend the base URL
+        //         if (foodItem.image) {
+        //         foodItem.image = `${baseUrl}${foodItem.image}`;
+        //         }
+    
+        //         return foodItem;  // Return the full foodItem object
+        //     }));
+        //     }
+        // }));
+        menus.forEach(menu => {
+            if (menu.foodItems && Array.isArray(menu.foodItems)) {
+              menu.foodItems.forEach(foodItem => {
+                if (foodItem.image) {
+                  // Prepend baseUrl to food item's image URL
+                  foodItem.image = `${baseUrl}/${foodItem.image}`;
+                }
+              });
+            }
+          });
 
-      return menuWithOrdering;
-      
+        
+        return menus;  // Return the updated menus
+
     } catch (error) {
         throw new HttpException(
             error.message,
@@ -216,18 +152,21 @@ export class MenusController {
       if (!menu) {
         throw new HttpException('Category not found', HttpStatus.NOT_FOUND);
       }
-
-      const ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('category', id);
-      // Call OrderingTimeframeService to check if ordering is allowed for this category
-      const isOrderingAllowed=await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
       
+      
+        if (menu.foodItems && Array.isArray(menu.foodItems)) {
+          menu.foodItems.forEach(foodItem => {
+            if (foodItem.image) {
+              // Prepend baseUrl to food item's image URL
+              foodItem.image = `${baseUrl}/${foodItem.image}`;
+            }
+          });
+        }
+     
+
       return {
         ...menu,
-        image: menu.image ? `${baseUrl}/${menu.image}` : null,
-        orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
-        orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
-        isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
-        isOrderingAllowed
+        // image: menu.image ? `${baseUrl}/${menu.image}` : null,
       };
     } catch (error) {
         if (error instanceof NotFoundException) {
@@ -238,33 +177,216 @@ export class MenusController {
     }
   }
 
-  @Get('/:id/fooditems')
-  async fooditemsByMenu(@Param('id') id: string){
-      // here id belongs to menu id
-      try{
-          return await this.menusService.findFoodItems(id);
-      }catch(error){
-          if (error instanceof NotFoundException) {
-              throw error;
-          }
-          throw new HttpException(
-              error.message,
-              error.status || HttpStatus.INTERNAL_SERVER_ERROR);
-      }
-  }
+//   @Get('/:id/fooditems')
+//   async fooditemsByMenu(@Param('id') id: string){
+//       // here id belongs to menu id
+//       try{
+//           return await this.menusService.findFoodItems(id);
+//       }catch(error){
+//           if (error instanceof NotFoundException) {
+//               throw error;
+//           }
+//           throw new HttpException(
+//               error.message,
+//               error.status || HttpStatus.INTERNAL_SERVER_ERROR);
+//       }
+//   }
 
-  @Post('/:id/add-food-item/:fooditemid')
-  async addFooditemToMenu(
-    @Param('id') menuId: string,
-    @Param('fooditemid') foodItemId:string
+    @Get('day/:day/fooditems')
+    async fooditemsByDay(
+        @Param('day') day: string,
+        @Req() req: Request
+    ) {
+        try {
+            const baseUrl = `${req.protocol}://${req.get('host')}`;
+            // Use the findByFields service to find menus where repeatDay contains the provided day
+            const menus = await this.menusService.findByFields({
+                repeatDay: { $in: [day] },  // Check if the day exists in repeatDay array
+            });
+
+            if (menus.length === 0) {
+                // throw new NotFoundException(`No menus found for the day "${day}"`);
+                return [];
+            }
+
+            // Combine foodItems from all matching menus into a single array
+            const foodItems = menus.reduce((acc, menu) => {
+                if (menu.foodItems && Array.isArray(menu.foodItems)) {
+                    acc.push(...menu.foodItems);  // Add foodItems to the accumulator
+                }
+                return acc;
+            }, []);  // Start with an empty array
+
+            // Ensure unique food items by their _id
+            const uniqueFoodItems = Array.from(
+                new Map(foodItems.map(item => [item._id, item])).values()
+            );
+            
+            // Prepend baseUrl to each foodItem's image URL if it exists
+            uniqueFoodItems.forEach(foodItem => {
+                if (foodItem.image) {
+                foodItem.image = `${baseUrl}/${foodItem.image}`;
+                }
+            });
+
+            return uniqueFoodItems;
+        } catch (error) {
+            return [];
+            
+        }
+    }
+
+    @Get('today/fooditems')
+    async fooditemsToday(
+        @Req() req: Request
+    ) {
+        try {
+            let days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+            let todayIndex = new Date().getDay();
+            let today = days[todayIndex];
+
+            const baseUrl = `${req.protocol}://${req.get('host')}`;
+            // Use the findByFields service to find menus where repeatDay contains the provided day
+            const menus = await this.menusService.findByFields({
+                repeatDay: { $in: [today] },  // Check if the day exists in repeatDay array
+            });
+
+            if (menus.length === 0) {
+                // throw new NotFoundException(`No menus found for the day "${day}"`);
+                return [];
+            }
+
+            // Combine foodItems from all matching menus into a single array
+            const foodItems = menus.reduce((acc, menu) => {
+                if (menu.foodItems && Array.isArray(menu.foodItems)) {
+                    acc.push(...menu.foodItems);  // Add foodItems to the accumulator
+                }
+                return acc;
+            }, []);  // Start with an empty array
+
+            // Ensure unique food items by their _id
+            const uniqueFoodItems = Array.from(
+                new Map(foodItems.map(item => [item._id, item])).values()
+            );
+            
+            // Prepend baseUrl to each foodItem's image URL if it exists
+            uniqueFoodItems.forEach(foodItem => {
+                if (foodItem.image) {
+                foodItem.image = `${baseUrl}/${foodItem.image}`;
+                }
+            });
+
+            return uniqueFoodItems;
+        } catch (error) {
+            return [];
+            
+        }
+    }
+
+    @Get('today/fooditems/category/:categoryId')
+    async fooditemsTodayByCategory(
+        @Req() req: Request,
+        @Param('categoryId') categoryId: string // Extract categoryId from the route parameter
+    ) {
+        try {
+            const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+            const todayIndex = new Date().getDay();
+            const today = days[todayIndex];
+
+            const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+            // Step 1: Get all food items for the given category
+            const allFoodItems = await this.foodItemService.findByFields({
+                category: categoryId,
+            });
+
+            if (!allFoodItems || allFoodItems.length === 0) {
+                return [];
+            }
+
+            // Step 2: Get all menus where repeatDay contains today
+            const menus = await this.menusService.findByFields({
+                repeatDay: { $in: [today] },
+            });
+
+            const todayFoodItemIds = new Set(
+                menus.flatMap(menu => menu.foodItems.map(item => item._id.toString()))
+            );
+
+            // console.log(todayFoodItemIds);
+            // Step 3: Mark availability for each food item
+            const foodItemsWithAvailability = allFoodItems.map(foodItem => {
+                const isAvailable = todayFoodItemIds.has(foodItem._id.toString());
+                return {
+                    ...foodItem,
+                    isAvailable,
+                    image: foodItem.image ? `${baseUrl}/${foodItem.image}` : null, // Add base URL for image
+                };
+            });
+
+            return foodItemsWithAvailability;
+        } catch (error) {
+            console.error('Error fetching food items by category:', error);
+            return [];
+        }
+    }
+
+
+    // @Post('/:id/add-food-item/:fooditemid')
+    // async addFooditemToMenu(
+    //     @Param('id') menuId: string,
+    //     @Param('fooditemid') foodItemId:string
+    // ){
+    //     try {
+    //         return await this.menusService.addFoodItemToMenu(menuId, foodItemId);
+    //     } catch (error) {
+    //         throw new HttpException(
+    //         error.message || 'Error adding food item to menu',
+    //         error.status || HttpStatus.BAD_REQUEST,
+    //         );
+    //     }
+    // }
+
+
+  @Get('page/:page/limit/:limit')
+  async findByPage(
+    @Param('page') page: string,
+    @Param('limit') limit: string,
+    @Req() req: Request
   ){
     try {
-      return await this.menusService.addFoodItemToMenu(menuId, foodItemId);
+      const pageNumber = parseInt(page, 10);
+      const limitNumber = parseInt(limit, 10);
+      // Validate the parameters
+      if (isNaN(pageNumber) || isNaN(limitNumber) || pageNumber < 1 || limitNumber < 1) {
+        throw new HttpException('Page and limit must be positive integers.', HttpStatus.BAD_REQUEST);
+      }
+
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const {menus,total} = await this.menusService.findByPage(pageNumber,limitNumber);
+      
+      menus.forEach(menu => {
+        if (menu.foodItems && Array.isArray(menu.foodItems)) {
+          menu.foodItems.forEach(foodItem => {
+            if (foodItem.image) {
+              // Prepend baseUrl to food item's image URL
+              foodItem.image = `${baseUrl}/${foodItem.image}`;
+            }
+          });
+        }
+      });
+
+  
+
+      return {menus:menus,total};
+
     } catch (error) {
+      if (error instanceof NotFoundException) {
+          throw error;
+      }
       throw new HttpException(
-        error.message || 'Error adding food item to menu',
-        error.status || HttpStatus.BAD_REQUEST,
-      );
+        error.message,
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 

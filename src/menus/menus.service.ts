@@ -17,34 +17,49 @@ export class MenusService {
 
   async create(createMenuDto: CreateMenuDto): Promise<Menu> {
     try{
+      
       const createdMenu = new this.menuModel(createMenuDto);
-      return await createdMenu.save();
+      // Save the menu
+      const savedMenu = await createdMenu.save();
+
+      // Populate the foodItems field
+      await savedMenu.populate('foodItems');
+
+      return savedMenu;
     }catch(error){
       throw new Error(`Error creating menu: ${error.message}`);
     }
   }
 
   async update(id: string, updateMenuDto: UpdateMenuDto): Promise<Menu> {
-    const existingMenu = await this.menuModel.findByIdAndUpdate(
-      id,
-       updateMenuDto,
-        { new: true, lean:true }).exec();
+    // Filter out null or undefined values from updateMenuDto
+    const filteredUpdate = Object.fromEntries(
+      Object.entries(updateMenuDto).filter(([_, value]) => value !== null && value !== undefined)
+    );
+  
+    // Update the document with filtered values
+    const existingMenu = await this.menuModel
+      .findByIdAndUpdate(id, filteredUpdate, { new: true, lean: true })
+      .populate('foodItems')
+      .exec();
+  
     if (!existingMenu) {
       throw new NotFoundException(`Menu #${id} not found`);
     }
+  
     return existingMenu;
   }
 
   async findAll(): Promise<Menu[]> {
     try{
-      return await this.menuModel.find().lean().exec();
+      return await this.menuModel.find().populate('foodItems').exec();
     }catch (error) {
       throw new Error(`Error fetching menus: ${error.message}`);
     }
   }
 
   async findOne(id: string): Promise<Menu> {
-    const menu = await this.menuModel.findById(id).lean().exec();
+    const menu = await this.menuModel.findById(id).populate('foodItems').lean().exec();
     if (!menu) {
       throw new NotFoundException(`Menu #${id} not found`);
     }
@@ -53,14 +68,14 @@ export class MenusService {
 
   async findByFields(filters: Record<string, any>): Promise<Menu[]> {
     // const foodItems = await this.foodItemModel.find(filters).populate('category').exec();
-    const menus = await this.menuModel.find(filters).lean().exec();
+    const menus = await this.menuModel.find(filters).populate('foodItems').lean().exec();
     if (menus.length === 0) {
         throw new NotFoundException(`No Menus found with the given filters: ${JSON.stringify(filters)}`);
     }
     return menus;
   }
 
-  async findFoodItems(id:string):Promise<Types.ObjectId[]>{
+  async findFoodItems(id:string):Promise<FoodItem[]>{
     const menu = await this.menuModel.findById(id).populate('foodItems').lean().exec();
     if (!menu) {
       throw new NotFoundException(`Menu #${id} not found`);
@@ -68,24 +83,44 @@ export class MenusService {
     return menu.foodItems;
   }
   
-  async addFoodItemToMenu(menuId: string, foodItemId: string): Promise<Menu> {
-    const menu = await this.menuModel.findById(menuId);
-    if (!menu) {
-      throw new NotFoundException(`Menu with ID ${menuId} not found`);
+  // async addFoodItemToMenu(menuId: string, foodItemId: string): Promise<Menu> {
+  //   const menu = await this.menuModel.findById(menuId);
+  //   if (!menu) {
+  //     throw new NotFoundException(`Menu with ID ${menuId} not found`);
+  //   }
+
+  //   // Convert foodItemId to ObjectId
+  //   const foodItemObjectId = new Types.ObjectId(foodItemId);
+
+  //   // Avoid duplicate food items
+  //   if (!menu.foodItems.includes(foodItemObjectId)) {
+  //     menu.foodItems.push(foodItemObjectId);
+  //   }
+
+  //   return menu.save();
+  // }
+
+  async findByPage(page: number, limit: number): Promise<{ menus: Menu[]; total: number }> {
+    try {
+        // Calculate the number of documents to skip
+        const skip = (page - 1) * limit;
+
+        // Fetch the categories with pagination
+        const [menus, total] = await Promise.all([
+            this.menuModel.find().populate('foodItems').skip(skip).limit(limit).lean().exec(),
+            this.menuModel.countDocuments().exec(),
+        ]);
+
+        // Return paginated data along with the total count
+        return {
+          menus,
+          total,
+        };
+    } catch (error) {
+        throw new Error(`Error fetching categories: ${error.message}`);
     }
-
-    // Convert foodItemId to ObjectId
-    const foodItemObjectId = new Types.ObjectId(foodItemId);
-
-    // Avoid duplicate food items
-    if (!menu.foodItems.includes(foodItemObjectId)) {
-      menu.foodItems.push(foodItemObjectId);
-    }
-
-    return menu.save();
   }
-
-
+  
   async remove(id: string): Promise<Menu> {
     try{
        // delete associate OrderTimeFrame

@@ -214,8 +214,13 @@ export class FooditemsController {
 
             const fooditemWithOrdering = await Promise.all(
                 fooditems.map(async (_item) => {
-                const ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('fooditem', _item._id.toString());
-                const isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
+                let ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('fooditem', _item._id.toString());
+                let isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
+                if(isOrderingAllowed){
+                    //check if it is disabled through category
+                    ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('category', _item.category.toString());
+                    isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
+                }
                 return {
                     ..._item,  
                     image: _item.image ? `${baseUrl}/${_item.image}` : null,
@@ -245,10 +250,14 @@ export class FooditemsController {
               throw new HttpException('Category not found', HttpStatus.NOT_FOUND);
             }
 
-            const ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('category', id);
+            let ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('fooditem', id);
             // Call OrderingTimeframeService to check if ordering is allowed for this category
-            const isOrderingAllowed=await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
-            
+            let isOrderingAllowed=await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
+            if(isOrderingAllowed){
+                //check if it is disabled through category
+                ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('category', fooditem.category.toString());
+                isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
+            }
             return {
               ...fooditem,
               image: fooditem.image ? `${baseUrl}/${fooditem.image}` : null,
@@ -285,8 +294,13 @@ export class FooditemsController {
         
         const foodItemWithOrdering = await Promise.all(
             fooditems.map(async (_item) => {
-            const ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('category', _item._id.toString());
-            const isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
+            let ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('fooditem', _item._id.toString());
+            let isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
+            if(isOrderingAllowed){
+                //check if it is disabled through category
+                ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('category', _item.category.toString());
+                isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
+            }
             return {
               ..._item, // Convert category to plain object
               image: _item.image ? `${baseUrl}/${_item.image}` : null,

@@ -104,7 +104,7 @@ export class OrderTimeFrameService {
           });
       
           if (!timeframe) return true; // No time frame means always allowed
-      
+          
           const now = new Date();
           const currentSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
           return (
@@ -116,6 +116,8 @@ export class OrderTimeFrameService {
           if(!entityTypeOrTimeframe) return true;
           
           const ordertimeframe = entityTypeOrTimeframe;
+          if(!ordertimeframe.isActive) return true; //Time frame not active mean always allowed
+
           const now = new Date();
           const currentSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
           return (
