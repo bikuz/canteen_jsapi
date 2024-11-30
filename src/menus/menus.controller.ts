@@ -270,11 +270,11 @@ async create(
             );
             
             // Prepend baseUrl to each foodItem's image URL if it exists
-            uniqueFoodItems.forEach(foodItem => {
-                if (foodItem.image) {
-                foodItem.image = `${baseUrl}/${foodItem.image}`;
-                }
-            });
+            // uniqueFoodItems.forEach(foodItem => {
+            //     if (foodItem.image) {
+            //     foodItem.image = `${baseUrl}/${foodItem.image}`;
+            //     }
+            // });
 
             const fooditemWithOrdering = await Promise.all(
                 uniqueFoodItems.map(async (_item) => {
@@ -339,7 +339,7 @@ async create(
                 return {
                     ...foodItem,
                     isAvailable,
-                    image: foodItem.image ? `${baseUrl}/${foodItem.image}` : null, // Add base URL for image
+                    // image: foodItem.image ? `${baseUrl}/${foodItem.image}` : null, // Add base URL for image
                 };
             });
 
