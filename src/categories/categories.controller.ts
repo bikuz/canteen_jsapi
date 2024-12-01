@@ -357,14 +357,19 @@ export class CategoriesController {
 
             const categoriesWithOrdering = await Promise.all(
               fooditems.map(async (_item) => {
-                const ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('fooditem', _item._id.toString());
-                const isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
+                
+                // const ordertimeframe_cat= await this.orderTimeFrameService.findOrderTimeframe('category', _item._id.toString());
+                const isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', id);
+                const ordertimeframe_food= await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
+                const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
+                const isOrderingAllowed = isOrderingAllowed_cat && isOrderingAllowed_food;
+
                 return {
                   ..._item, // Convert category to plain object
                   image: _item.image ? `${baseUrl}/${_item.image}` : null,
-                  orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
-                  orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
-                  isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
+                  orderingStartTime:ordertimeframe_food?ordertimeframe_food.orderingStartTime:0,
+                  orderingEndTime:ordertimeframe_food?ordertimeframe_food.orderingEndTime:0,
+                  isOrderTimeFrameActive:ordertimeframe_food?ordertimeframe_food.isActive:false,
                   isOrderingAllowed, // Add the isOrderingAllowed field
                 };
               }),
