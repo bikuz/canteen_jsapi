@@ -31,6 +31,7 @@ export class PaymentsService {
     const newPayment = new this.paymentModel({
       ...createPaymentDto,
       token,
+      paymentStatus:'pending',
     });
 
     const savedPayment = (await newPayment.save());
@@ -55,11 +56,33 @@ export class PaymentsService {
   async update(id: string, updatePaymentDto: UpdatePaymentDto): Promise<Payment> {
     const existingPayment = await this.paymentModel
     .findByIdAndUpdate(id, updatePaymentDto, { new: true , lean:true})
+    .populate('order')
     .exec();
     if (!existingPayment) {
       throw new NotFoundException(`Payment #${id} not found`);
     }
     return existingPayment;
+  }
+
+  async findByPage(page: number, limit: number): Promise<{ payments: Payment[]; total: number }> {
+    try {
+        // Calculate the number of documents to skip
+        const skip = (page - 1) * limit;
+
+        // Fetch the categories with pagination
+        const [payments, total] = await Promise.all([
+            this.paymentModel.find().populate('order').skip(skip).limit(limit).lean().exec(),
+            this.paymentModel.countDocuments().exec(),
+        ]);
+
+        // Return paginated data along with the total count
+        return {
+          payments,
+          total,
+        };
+    } catch (error) {
+        throw new Error(`Error fetching orders: ${error.message}`);
+    }
   }
 
   async remove(id: string): Promise<Payment> {

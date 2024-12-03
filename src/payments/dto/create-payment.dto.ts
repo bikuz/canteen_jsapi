@@ -14,19 +14,19 @@ export class CreatePaymentDto {
   paymentMethod: string;
 
   @IsNotEmpty()
-  @IsEnum(['pending', 'paid', 'failed'])
-  paymentStatus: string;
-
-  @IsNotEmpty()
   @IsNumber()
   amount: number;
+
+  @IsOptional()
+  @IsEnum(['pending', 'paid', 'failed'])
+  paymentStatus?: string|null;
 
   @IsOptional()
   @IsNumber()
   token?: number | null;
 
-  @IsOptional()
-  @IsString()
-  transactionId?: string;
+  // @IsOptional()
+  // @IsString()
+  // transactionId?: string;
 
 }

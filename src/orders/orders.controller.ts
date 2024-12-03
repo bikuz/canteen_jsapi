@@ -24,15 +24,21 @@ export class OrdersController {
       // Array to store items with their `isOrderingAllowed` status
       const itemsWithStatus = await Promise.all(
         createOrderDto.foodItems.map(async (fd) => {
+          const fooditem= await this.fooditemService.findOne(fd);
           const isOrderingAllowed = await this.fooditemService.isOrderingAllowed(fd);
-          return { foodItem: fd, isOrderingAllowed };
+          return { foodItem: fooditem, isOrderingAllowed };
         }),
       );
 
       // Check if all items have `isOrderingAllowed` as true
       const allAllowed = itemsWithStatus.every(item => item.isOrderingAllowed);
+      // check if all items are available
+      const allAvailable = itemsWithStatus.every(item => item.foodItem.isAvailable);
+      
+      // allowed only if both are true
+      const isAllAllowed = allAllowed && allAvailable;
 
-      if (!allAllowed) {
+      if (!isAllAllowed) {
         // Return the DTO with the `isOrderingAllowed` status for each item
         return {
           success: false,
@@ -74,7 +80,8 @@ export class OrdersController {
       const cancelDate = new Date(Date.now());
       const updatedOrder = await this.ordersService.update(id, {
         // ...order,
-        cancelReason: updateOrderDto.cancelReason,
+        // cancelReason: updateOrderDto.cancelReason,
+        ...updateOrderDto,
         cancelledAt: cancelDate,
       });
       return updatedOrder;
