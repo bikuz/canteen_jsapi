@@ -4,12 +4,14 @@ import { Model } from 'mongoose';
 import { FoodItem } from './fooditems.model';
 import { CreateFoodItemDto, UpdateFoodItemDto } from './dto';
 import { OrderTimeFrameService } from '../ordertimeframe/ordertimeframe.service';
+// import { CategoriesService } from '../categories/categories.service';
 
 @Injectable()
 export class FoodItemsService {
     constructor(
         @InjectModel(FoodItem.name) private foodItemModel:Model<FoodItem>,
         private readonly orderTimeFrameService:OrderTimeFrameService,
+        // private readonly categoryService:CategoriesService,
     ){}
 
     async create(createFoodItemDto: CreateFoodItemDto): Promise<FoodItem> {
@@ -79,6 +81,25 @@ export class FoodItemsService {
         } catch (error) {
             throw new Error(`Error fetching categories: ${error.message}`);
         }
+    }
+
+    async isOrderingAllowed(id:string): Promise<boolean>{
+        try{
+            const fooditem = await this.foodItemModel.findById(id).lean().exec();
+            if (!fooditem) {
+                throw new NotFoundException(`FoodItem #${id} not found`);
+            }
+
+            const isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', fooditem.category.toString());
+            const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed('fooditems', id);
+            const isOrderingAllowed = isOrderingAllowed_cat && isOrderingAllowed_food;
+
+            return isOrderingAllowed;
+
+        }catch(error){
+            throw new Error(error.message);
+        }
+
     }
 
     async remove(id: string): Promise<FoodItem> {

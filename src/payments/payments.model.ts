@@ -6,10 +6,13 @@ import { Types } from 'mongoose';
 export class Payment extends Document {
 
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
-  customerId: Types.ObjectId;
+  customer: Types.ObjectId;
 
   @Prop({ required: true, type: Types.ObjectId, ref: 'Order' })
-  orderId: string;
+  order: string;
+  
+  // @Prop({ type: String, unique: true, required: false })
+  // transactionId: string | null;
   
   @Prop({ required: true, enum: ['cash', 'esewa','khalti','fonepay'] })
   paymentMethod: string; // 'cash', 'eSewa', 'Khalti', 'fonepay'

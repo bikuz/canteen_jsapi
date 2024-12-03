@@ -1,15 +1,19 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 import { Types } from 'mongoose';
+import { FoodItem } from '../fooditems/fooditems.model';
 
 @Schema()
 export class Order extends Document {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
-  customerId: Types.ObjectId;
+  customer: Types.ObjectId;
 
-  @Prop([{ type: Types.ObjectId, ref: 'FoodItem', required: true }])
-  foodItems: Types.ObjectId[];
+  // @Prop([{ type: Types.ObjectId, ref: 'FoodItem', required: true }])
+  // foodItems: Types.ObjectId[];
 
+  @Prop({ type: [Types.ObjectId], ref: 'FoodItem', required: true})
+  foodItems:FoodItem[]|null;
+  
   @Prop([{ type: Number, required: true }])
   quantities: number[];
 

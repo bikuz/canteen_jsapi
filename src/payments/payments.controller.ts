@@ -1,10 +1,17 @@
+ 
 import { Controller, Get, Post, Body, Param, Patch, Delete } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { CreatePaymentDto, UpdatePaymentDto } from './dto';
+import { Model } from 'mongoose';
+import { Payment } from './payments.model';
 
 @Controller('payments')
 export class PaymentsController {
-  constructor(private readonly paymentsService: PaymentsService) {}
+  constructor(private readonly paymentsService: PaymentsService) {
+   
+  }
+
+  
 
   @Post()
   async create(@Body() createPaymentDto: CreatePaymentDto) {

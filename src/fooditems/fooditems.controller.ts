@@ -214,19 +214,25 @@ export class FooditemsController {
 
             const fooditemWithOrdering = await Promise.all(
                 fooditems.map(async (_item) => {
-                  let ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('fooditem', _item._id.toString());
-                  let isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
-                  if(isOrderingAllowed){
-                      //check if it is disabled through category
-                      ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('category', _item.category.toString());
-                      isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
-                  }
+                  // let ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('fooditem', _item._id.toString());
+                  // let isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
+                  // if(isOrderingAllowed){
+                  //     //check if it is disabled through category
+                  //     ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('category', _item.category.toString());
+                  //     isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
+                  // }
+                  
+                  const isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', _item.category.toString());
+                  const ordertimeframe_food= await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
+                  const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
+                  const isOrderingAllowed = isOrderingAllowed_cat && isOrderingAllowed_food;
+
                   return {
                       ..._item,  
                       image: _item.image ? `${baseUrl}/${_item.image}` : null,
-                      orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
-                      orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
-                      isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
+                      orderingStartTime:ordertimeframe_food?ordertimeframe_food.orderingStartTime:0,
+                      orderingEndTime:ordertimeframe_food?ordertimeframe_food.orderingEndTime:0,
+                      isOrderTimeFrameActive:ordertimeframe_food?ordertimeframe_food.isActive:false,
                       isOrderingAllowed,  
                   };
                 }),
@@ -250,20 +256,17 @@ export class FooditemsController {
               throw new HttpException('Category not found', HttpStatus.NOT_FOUND);
             }
 
-            let ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('fooditem', id);
-            // Call OrderingTimeframeService to check if ordering is allowed for this category
-            let isOrderingAllowed=await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
-            if(isOrderingAllowed){
-                //check if it is disabled through category
-                ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('category', fooditem.category.toString());
-                isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
-            }
+            const isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', fooditem.category.toString());
+            const ordertimeframe_food= await this.orderTimeFrameService.findOrderTimeframe('fooditems', id);
+            const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
+            const isOrderingAllowed = isOrderingAllowed_cat && isOrderingAllowed_food;
+
             return {
               ...fooditem,
               image: fooditem.image ? `${baseUrl}/${fooditem.image}` : null,
-              orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
-              orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
-              isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
+              orderingStartTime:ordertimeframe_food?ordertimeframe_food.orderingStartTime:0,
+              orderingEndTime:ordertimeframe_food?ordertimeframe_food.orderingEndTime:0,
+              isOrderTimeFrameActive:ordertimeframe_food?ordertimeframe_food.isActive:false,
               isOrderingAllowed
             };
         } catch (error) {
@@ -294,19 +297,18 @@ export class FooditemsController {
         
         const foodItemWithOrdering = await Promise.all(
             fooditems.map(async (_item) => {
-            let ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('fooditem', _item._id.toString());
-            let isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
-            if(isOrderingAllowed){
-                //check if it is disabled through category
-                ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('category', _item.category.toString());
-                isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
-            }
+   
+            const isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', _item.category.toString());
+            const ordertimeframe_food= await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
+            const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
+            const isOrderingAllowed = isOrderingAllowed_cat && isOrderingAllowed_food;
+
             return {
               ..._item, // Convert category to plain object
               image: _item.image ? `${baseUrl}/${_item.image}` : null,
-              orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
-              orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
-              isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
+              orderingStartTime:ordertimeframe_food?ordertimeframe_food.orderingStartTime:0,
+              orderingEndTime:ordertimeframe_food?ordertimeframe_food.orderingEndTime:0,
+              isOrderTimeFrameActive:ordertimeframe_food?ordertimeframe_food.isActive:false,
               isOrderingAllowed, // Add the isOrderingAllowed field
             };
           }),

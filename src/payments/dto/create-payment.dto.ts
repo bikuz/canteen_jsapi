@@ -3,11 +3,11 @@ import { IsNotEmpty, IsMongoId, IsEnum, IsNumber, IsOptional,IsString } from 'cl
 export class CreatePaymentDto {
   @IsNotEmpty()
   @IsMongoId()
-  customerId: string;
+  customer: string;
 
   @IsNotEmpty()
   @IsMongoId()
-  orderId: string;
+  order: string;
 
   @IsNotEmpty()
   @IsEnum(['cash', 'esewa','khalti','fonepay'])
