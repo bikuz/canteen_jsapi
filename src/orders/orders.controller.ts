@@ -9,7 +9,7 @@ import { FoodItemsService } from '../fooditems/fooditems.service';
 import { PaymentsService } from '../payments/payments.service';
 
 import { Request } from 'express';
-import { ConfigService } from '@nestjs/config';
+ 
 
 @Controller('orders')
 export class OrdersController {
@@ -19,7 +19,7 @@ export class OrdersController {
     private readonly fooditemService:FoodItemsService,
     private readonly paymentService:PaymentsService,
 
-    private configService: ConfigService,
+     
   ) {
     
   }
@@ -51,7 +51,7 @@ export class OrdersController {
         // Return the DTO with the `isOrderingAllowed` status for each item
         return {
           success: false,
-          // message: 'Some food items cannot be ordered.',
+          message: 'Some food items are not available.',
           // data: itemsWithStatus,
           // createOrderDto,
           order:{
@@ -94,22 +94,21 @@ export class OrdersController {
       if (order.status === 'cancelled') {
         return { 
           success: false,
-          message: "Order cannot be canceled.",
+          message: "Order is already cancelled.",
           order:order
-          
         };
       }
 
       // Check if the order is within the cancellation window
-      const cancelTime = this.configService.get<string>('ORDER_CANCEL_TIME');
-      const currentTime = new Date();
-      const cancellationDeadline = new Date(order.createdAt);
-      cancellationDeadline.setMinutes(cancellationDeadline.getMinutes() + parseInt(cancelTime)); // 5 minutes window
-
-      if (currentTime > cancellationDeadline) {
+      // const cancelTime = this.configService.get<string>('ORDER_CANCEL_TIME');
+      // const currentTime = new Date();
+      // const cancellationDeadline = new Date(order.createdAt);
+      // cancellationDeadline.setMinutes(cancellationDeadline.getMinutes() + parseInt(cancelTime)); // 5 minutes window
+      const cancelAllowed= this.ordersService.isCancelAllowed(id);
+      if (!cancelAllowed) {
           return { 
               success: false, 
-              // message: "Order preparation has started. Cancellation not allowed."
+              message: "Cancellation is not allowed after 15 minutes of order.",
               order:order
           };
       }
@@ -140,6 +139,30 @@ export class OrdersController {
           error.status || HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
+
+
+  @Get('history/:userid')
+  async findOrderHistory(@Param('userid') userid: string,) {
+    try{
+      const orders= await this.ordersService.findAll({customer:userid});
+
+      const orersWithCancelStatus= await Promise.all(
+        orders.map(async (item)=>{
+          return{
+            ...item,
+            isCancelAllowed: this.ordersService.isCancelAllowed(item._id.toString())
+          };
+        })
+      );
+      return orersWithCancelStatus;
+
+    }catch (error) {
+        throw new HttpException(
+            error.message,
+            error.status || HttpStatus.INTERNAL_SERVER_ERROR);
+    }    
+  }
+
 
   @Get()
   async findAll() {

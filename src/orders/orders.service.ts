@@ -3,10 +3,14 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Order } from './orders.model';
 import { CreateOrderDto, UpdateOrderDto } from './dto';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class OrdersService {
-  constructor(@InjectModel(Order.name) private orderModel: Model<Order>) {}
+  constructor(
+    @InjectModel(Order.name) private orderModel: Model<Order>,
+    private configService: ConfigService,
+  ) {}
 
   async create(createOrderDto: CreateOrderDto): Promise<Order> {
     try{
@@ -71,8 +75,6 @@ export class OrdersService {
     return order;
   }
 
-  
-
   async findByPage(page: number, limit: number): Promise<{ orders: Order[]; total: number }> {
     try {
         // Calculate the number of documents to skip
@@ -92,6 +94,25 @@ export class OrdersService {
     } catch (error) {
         throw new Error(`Error fetching orders: ${error.message}`);
     }
+  }
+
+  async isCancelAllowed(orderId: string):Promise<boolean>{
+    try{
+
+      const order = await this.findOne(orderId);
+
+      // Check if the order is within the cancellation window
+      const cancelTime = this.configService.get<string>('ORDER_CANCEL_TIME');
+      const currentTime = new Date();
+      const cancellationDeadline = new Date(order.createdAt);
+      cancellationDeadline.setMinutes(cancellationDeadline.getMinutes() + parseInt(cancelTime)); // 5 minutes window
+
+       return currentTime > cancellationDeadline;
+       
+    }catch (error) {
+      throw new Error(`Error checking order cancellation: ${error.message}`);
+  }
+
   }
 
   async remove(id: string): Promise<Order> {

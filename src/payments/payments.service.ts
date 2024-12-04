@@ -4,9 +4,14 @@ import { Model } from 'mongoose';
 import { Payment } from './payments.model';
 import { CreatePaymentDto, UpdatePaymentDto } from './dto';
 
+
 @Injectable()
 export class PaymentsService {
-  constructor(@InjectModel(Payment.name) private paymentModel: Model<Payment>) {}
+  
+  constructor(
+    @InjectModel(Payment.name) private paymentModel: Model<Payment>,
+    
+) {}
 
   /**
    * Generates the next token for the day.
@@ -48,7 +53,7 @@ export class PaymentsService {
     );
 
     const existingPayment = await this.paymentModel
-    .findByIdAndUpdate(id, updatePaymentDto, { new: true , lean:true})
+    .findByIdAndUpdate(id, filteredUpdate, { new: true , lean:true})
     .populate('order')
     .exec();
     if (!existingPayment) {
@@ -67,7 +72,7 @@ export class PaymentsService {
     );
 
     const existingPayment = await this.paymentModel
-    .findByIdAndUpdate(id, updatePaymentDto, { new: true , lean:true})
+    .findByIdAndUpdate(id, filteredUpdate, { new: true , lean:true})
     .populate('order')
     .exec();
     
@@ -141,6 +146,8 @@ export class PaymentsService {
         throw new Error(`Error fetching payment: ${error.message}`);
     }
   }
+
+  
 
   async remove(id: string): Promise<Payment> {
     const deletedPayment = await this.paymentModel.findByIdAndDelete(id).exec();

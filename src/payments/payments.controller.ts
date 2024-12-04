@@ -4,13 +4,18 @@ import { PaymentsService } from './payments.service';
 import { CreatePaymentDto, UpdatePaymentDto } from './dto';
 import { Model } from 'mongoose';
 import { Payment } from './payments.model';
+import { OrdersService } from '../orders/orders.service';
 
 import { Request } from 'express';
 import { ConfigService } from '@nestjs/config';
 
 @Controller('payment')
 export class PaymentsController {
-  constructor(private readonly paymentsService: PaymentsService) {
+  constructor(
+    private readonly paymentsService: PaymentsService,
+    private readonly orderService: OrdersService,
+    
+  ) {
    
   }
  
@@ -18,7 +23,12 @@ export class PaymentsController {
   @Post()
   async create(@Body() createPaymentDto: CreatePaymentDto) {
     try{
-      return this.paymentsService.create(createPaymentDto);
+      const payment= await this.paymentsService.create(createPaymentDto);
+
+      return {
+        ...createPaymentDto,
+        isCancelAllowed: this.orderService.isCancelAllowed(payment.order)
+      }
       
     }catch (error) {
       throw new HttpException(
@@ -50,16 +60,7 @@ export class PaymentsController {
     }
   }
 
-  @Get('history/:userid')
-  async findOrderHistory(@Param('userid') userid: string,) {
-    try{
-      return this.paymentsService.findAll({customer:userid});
-    }catch (error) {
-        throw new HttpException(
-            error.message,
-            error.status || HttpStatus.INTERNAL_SERVER_ERROR);
-    }    
-  }
+
 
   @Get()
   async findAll() {
