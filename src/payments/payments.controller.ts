@@ -51,9 +51,9 @@ export class PaymentsController {
   }
 
   @Get('history/:userid')
-  async findOrderHistory(@Param('userid') orderid: string,) {
+  async findOrderHistory(@Param('userid') userid: string,) {
     try{
-      return this.paymentsService.findAll({customer:orderid});
+      return this.paymentsService.findAll({customer:userid});
     }catch (error) {
         throw new HttpException(
             error.message,
