@@ -15,7 +15,7 @@ export class OrdersService {
       return await savedOrder.populate('foodItems');
 
     }catch(error){
-      throw new Error(`Error creating menu: ${error.message}`)
+      throw new Error(`Error creating order: ${error.message}`)
     }
 
   }
@@ -29,6 +29,7 @@ export class OrdersService {
     const existingOrder = await this.orderModel
       .findByIdAndUpdate(id, filteredUpdate, { new: true,lean:true })
       .populate('foodItems')
+      .lean()
       .exec();
 
     if (!existingOrder) {
@@ -37,21 +38,40 @@ export class OrdersService {
     return existingOrder;
   }
 
-  async findAll(): Promise<Order[]> {
-    try{
-      return await this.orderModel.find().populate('foodItems').exec();
-    }catch (error) {
+  async findAll(filters: Record<string, any> = {}): Promise<Order[]> {
+    try {
+      // Use filters if provided, otherwise retrieve all documents
+      return await this.orderModel
+        .find(filters)
+        .populate('foodItems')
+        .lean()
+        .exec();
+    } catch (error) {
       throw new Error(`Error fetching orders: ${error.message}`);
     }
   }
 
+  async filterOne(filters: Record<string, any>={}): Promise<Order | null> {
+    try {
+      // Use the provided filters to find a single document
+      return await this.orderModel
+        .findOne(filters)
+        .populate('foodItems')
+        .lean()
+        .exec();
+    } catch (error) {
+      throw new Error(`Error fetching order: ${error.message}`);
+    }
+  }
   async findOne(id: string): Promise<Order> {
-    const order = await this.orderModel.findById(id).populate('foodItems').exec();
+    const order = await this.orderModel.findById(id).populate('foodItems').lean().exec();
     if (!order) {
       throw new NotFoundException(`Order #${id} not found`);
     }
     return order;
   }
+
+  
 
   async findByPage(page: number, limit: number): Promise<{ orders: Order[]; total: number }> {
     try {
@@ -75,7 +95,7 @@ export class OrdersService {
   }
 
   async remove(id: string): Promise<Order> {
-    const deletedOrder = await this.orderModel.findByIdAndDelete(id).exec();
+    const deletedOrder = await this.orderModel.findByIdAndDelete(id).lean().exec();
     if (!deletedOrder) {
       throw new NotFoundException(`Order #${id} not found`);
     }

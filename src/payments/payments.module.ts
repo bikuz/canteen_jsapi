@@ -7,6 +7,7 @@ import { Payment, PaymentSchema } from './payments.model';
 @Module({
   imports: [MongooseModule.forFeature([{ name: Payment.name, schema: PaymentSchema }])],
   providers: [PaymentsService],
-  controllers: [PaymentsController]
+  controllers: [PaymentsController],
+  exports: [PaymentsService,MongooseModule],
 })
 export class PaymentsModule {}

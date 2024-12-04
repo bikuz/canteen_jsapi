@@ -27,19 +27,87 @@ export class PaymentsService {
   }
 
   async create(createPaymentDto: CreatePaymentDto): Promise<Payment> {
-    const token = await this.generateToken(); // Generate the token for this payment
-    const newPayment = new this.paymentModel({
-      ...createPaymentDto,
-      token,
-      paymentStatus:'pending',
-    });
+    try{
+      const token = await this.generateToken(); // Generate the token for this payment
+      const newPayment = new this.paymentModel({
+        ...createPaymentDto,
+        token,
+        paymentStatus:'pending',
+      });
 
-    const savedPayment = (await newPayment.save());
-    return savedPayment.populate('order');
+      const savedPayment = (await newPayment.save());
+      return savedPayment.populate('order');
+    }catch(error){
+      throw new Error(`Error creating payment: ${error.message}`)
+    }
   }
 
-  async findAll(): Promise<Payment[]> {
-    return this.paymentModel.find().populate('order').lean().exec();
+  async update(id: string, updatePaymentDto: UpdatePaymentDto): Promise<Payment> {
+    const filteredUpdate = Object.fromEntries(
+      Object.entries(updatePaymentDto).filter(([_, value]) => value !== null && value !== undefined)
+    );
+
+    const existingPayment = await this.paymentModel
+    .findByIdAndUpdate(id, updatePaymentDto, { new: true , lean:true})
+    .populate('order')
+    .exec();
+    if (!existingPayment) {
+      throw new NotFoundException(`Payment #${id} not found`);
+    }
+    return existingPayment;
+  }
+
+  async updateStatus(id: string, status:string): Promise<Payment> {
+    const updatePaymentDto={
+      status:status
+    };
+
+    const filteredUpdate = Object.fromEntries(
+      Object.entries(updatePaymentDto).filter(([_, value]) => value !== null && value !== undefined)
+    );
+
+    const existingPayment = await this.paymentModel
+    .findByIdAndUpdate(id, updatePaymentDto, { new: true , lean:true})
+    .populate('order')
+    .exec();
+    
+    if (!existingPayment) {
+      throw new NotFoundException(`Payment #${id} not found`);
+    }
+    return existingPayment;
+  }
+
+  // async findAll(): Promise<Payment[]> {
+  //   try{
+  //     return this.paymentModel.find().populate('order').lean().exec();
+  //   }catch (error) {
+  //     throw new Error(`Error fetching payment: ${error.message}`);
+  //   }
+  // }
+  async findAll(filters: Record<string, any> = {}): Promise<Payment[]> {
+    try {
+      // Use filters if provided, otherwise retrieve all documents
+      return await this.paymentModel
+        .find(filters)
+        .populate('order')
+        .lean()
+        .exec();
+    } catch (error) {
+      throw new Error(`Error fetching payment: ${error.message}`);
+    }
+  }
+
+  async filterOne(filters: Record<string, any>={}): Promise<Payment | null> {
+    try {
+      // Use the provided filters to find a single document
+      return await this.paymentModel
+        .findOne(filters)
+        .populate('order')
+        .lean()
+        .exec();
+    } catch (error) {
+      throw new Error(`Error fetching payment: ${error.message}`);
+    }
   }
 
   async findOne(id: string): Promise<Payment> {
@@ -51,17 +119,6 @@ export class PaymentsService {
       throw new NotFoundException(`Payment #${id} not found`);
     }
     return payment;
-  }
-
-  async update(id: string, updatePaymentDto: UpdatePaymentDto): Promise<Payment> {
-    const existingPayment = await this.paymentModel
-    .findByIdAndUpdate(id, updatePaymentDto, { new: true , lean:true})
-    .populate('order')
-    .exec();
-    if (!existingPayment) {
-      throw new NotFoundException(`Payment #${id} not found`);
-    }
-    return existingPayment;
   }
 
   async findByPage(page: number, limit: number): Promise<{ payments: Payment[]; total: number }> {
@@ -81,7 +138,7 @@ export class PaymentsService {
           total,
         };
     } catch (error) {
-        throw new Error(`Error fetching orders: ${error.message}`);
+        throw new Error(`Error fetching payment: ${error.message}`);
     }
   }
 

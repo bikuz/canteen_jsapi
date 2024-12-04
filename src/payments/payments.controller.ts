@@ -6,19 +6,20 @@ import { Model } from 'mongoose';
 import { Payment } from './payments.model';
 
 import { Request } from 'express';
+import { ConfigService } from '@nestjs/config';
 
 @Controller('payment')
 export class PaymentsController {
   constructor(private readonly paymentsService: PaymentsService) {
    
   }
-
-  
+ 
 
   @Post()
   async create(@Body() createPaymentDto: CreatePaymentDto) {
     try{
       return this.paymentsService.create(createPaymentDto);
+      
     }catch (error) {
       throw new HttpException(
         error.message,
@@ -49,6 +50,17 @@ export class PaymentsController {
     }
   }
 
+  @Get('history/:orderid')
+  async findOrderHistory(@Param('orderid') orderid: string,) {
+    try{
+      return this.paymentsService.findAll({order:orderid});
+    }catch (error) {
+        throw new HttpException(
+            error.message,
+            error.status || HttpStatus.INTERNAL_SERVER_ERROR);
+    }    
+  }
+
   @Get()
   async findAll() {
     try{
@@ -57,8 +69,7 @@ export class PaymentsController {
         throw new HttpException(
             error.message,
             error.status || HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-    
+    }    
   }
 
   @Get(':id')

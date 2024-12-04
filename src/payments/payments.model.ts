@@ -17,7 +17,7 @@ export class Payment extends Document {
   @Prop({ required: true, enum: ['cash', 'esewa','khalti','fonepay'] })
   paymentMethod: string; // 'cash', 'eSewa', 'Khalti', 'fonepay'
 
-  @Prop({ required: true, enum: ['pending', 'paid', 'failed'] }) //, 'refunded'
+  @Prop({ required: true, enum: ['pending', 'paid', 'failed','refund','cancelled'] })  
   paymentStatus: string;
 
   @Prop({ type: Number, default: null })

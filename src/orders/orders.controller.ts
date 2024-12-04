@@ -3,10 +3,13 @@ import { UploadedFile, UseInterceptors, Req, HttpException, NotFoundException, H
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto, UpdateOrderDto } from './dto';
+
 import { FoodItemsService } from '../fooditems/fooditems.service';
 // import { OrderTimeFrameService } from '../ordertimeframe/ordertimeframe.service';
+import { PaymentsService } from '../payments/payments.service';
 
 import { Request } from 'express';
+import { ConfigService } from '@nestjs/config';
 
 @Controller('orders')
 export class OrdersController {
@@ -14,7 +17,12 @@ export class OrdersController {
     private readonly ordersService: OrdersService,
     // private readonly orderTimeService:OrderTimeFrameService,
     private readonly fooditemService:FoodItemsService,
-  ) {}
+    private readonly paymentService:PaymentsService,
+
+    private configService: ConfigService,
+  ) {
+    
+  }
 
   @Post()
   @ApiOperation({ summary: 'Create Orders if fooditems are available' })
@@ -37,7 +45,8 @@ export class OrdersController {
       
       // allowed only if both are true
       const isAllAllowed = allAllowed && allAvailable;
-
+      
+      
       if (!isAllAllowed) {
         // Return the DTO with the `isOrderingAllowed` status for each item
         return {
@@ -52,6 +61,7 @@ export class OrdersController {
           }
         };
       }
+
 
       // Create the order if all items are allowed
       const order = await this.ordersService.create({
@@ -76,14 +86,49 @@ export class OrdersController {
   @ApiResponse({ status: 200, description: 'Order cancelled successfully' })
   async update(@Param('id') id: string, @Body() updateOrderDto: UpdateOrderDto) {
     try{
-      
+      const order = await this.ordersService.findOne(id);
+      if (!order) {
+          throw new HttpException('Order not found', HttpStatus.NOT_FOUND);
+      }
+      // Check if the order is already canceled
+      if (order.status === 'cancelled') {
+        return { 
+          success: false,
+          message: "Order cannot be canceled.",
+          order:order
+          
+        };
+      }
+
+      // Check if the order is within the cancellation window
+      const cancelTime = this.configService.get<string>('ORDER_CANCEL_TIME');
+      const currentTime = new Date();
+      const cancellationDeadline = new Date(order.createdAt);
+      cancellationDeadline.setMinutes(cancellationDeadline.getMinutes() + parseInt(cancelTime)); // 5 minutes window
+
+      if (currentTime > cancellationDeadline) {
+          return { 
+              success: false, 
+              // message: "Order preparation has started. Cancellation not allowed."
+              order:order
+          };
+      }
+    
       const cancelDate = new Date(Date.now());
       const updatedOrder = await this.ordersService.update(id, {
         // ...order,
         // cancelReason: updateOrderDto.cancelReason,
         ...updateOrderDto,
+        status:'cancelled',
         cancelledAt: cancelDate,
       });
+
+      // if payment as been initiated, make paymentstatus cancelled
+      const pay = this.paymentService.filterOne({order:id});
+      if(pay){
+        await this.paymentService.updateStatus((await pay)._id.toString(), 'cancelled');
+      }
+
       return updatedOrder;
 
     }catch (error) {
