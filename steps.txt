@@ -29,4 +29,77 @@
         cd frontend
         npm install
 
+        npm run dev
 
+10. Install tailwind CSS
+        npm install -D tailwindcss postcss autoprefixer
+        npx tailwindcss init
+
+        This creates a tailwind.config.js file in the project
+
+        a. Configure Tailwind
+           Update the tailwind.config.js file to include the paths to your Svelte files.
+           Modify it as follows:
+
+                /** @type {import('tailwindcss').Config} */
+                module.exports = {
+                        content: [
+                                "./src/**/*.{html,js,svelte,ts}", // Adjust this to match your project structure
+                                ],
+                        theme: {
+                                extend: {},
+                        },
+                        plugins: [],
+                };
+
+        b. Set Up PostCSS
+           Create a postcss.config.cjs file in the root of your project and add the following:
+
+           module.exports = {
+                plugins: {
+                        tailwindcss: {},
+                        autoprefixer: {},
+                },
+           };
+
+        c. Add Tailwind to Your CSS
+           In your main CSS file (e.g., src/app.css), include the Tailwind directives:
+
+           @tailwind base;
+           @tailwind components;
+           @tailwind utilities;
+
+        d. Import CSS in Your Svelte App
+           Import the CSS file into your Svelte application. 
+           For example, in src/main.js or src/main.ts:
+
+                import './app.css';
+                import App from './App.svelte';
+
+                const app = new App({
+                        target: document.getElementById('app'),
+                });
+
+                export default app;
+
+        e. congiure in rollup.config.js
+           intall package and import
+
+        npm install rollup-plugin-postcss --save-dev
+
+        
+        import postcss from 'rollup-plugin-postcss';
+        import tailwindcss from 'tailwindcss';
+        import autoprefixer from 'autoprefixer';
+
+        then, replace css({ output: 'bundle.css' }) by following:
+
+        postcss({
+            extensions: ['.css'],
+            extract: 'bundle.css',
+            minimize: production,
+            plugins: [
+                tailwindcss(),
+                autoprefixer(),
+            ],
+        }),
