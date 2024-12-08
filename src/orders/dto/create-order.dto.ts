@@ -24,10 +24,15 @@ export class CreateOrderDto {
   @ApiProperty({ description: 'Total price', example: '' })
   totalPrice: number;
 
+  @IsNotEmpty()
+  @IsEnum(['cash', 'esewa','khalti','fonepay'])
+  @ApiProperty({ description: "Payment Method", example: 'cash, esewa, khalti, fonepay' })
+  paymentMethod: string;
+
   @IsOptional()
-  @IsEnum(['created', 'processing', 'completed', 'cancelled'])
+  @IsEnum(['pending', 'processing', 'completed', 'cancelled'])
   @ApiPropertyOptional({ description: 'Order Status', example: 'created, cancelled' })
-  status?: string;
+  status?: string ='pending';
 
 
 }

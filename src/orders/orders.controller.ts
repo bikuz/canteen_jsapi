@@ -6,10 +6,10 @@ import { CreateOrderDto, UpdateOrderDto } from './dto';
 
 import { FoodItemsService } from '../fooditems/fooditems.service';
 // import { OrderTimeFrameService } from '../ordertimeframe/ordertimeframe.service';
+import { CreatePaymentDto } from '../payments/dto';
 import { PaymentsService } from '../payments/payments.service';
 
 import { Request } from 'express';
- 
 
 @Controller('orders')
 export class OrdersController {
@@ -18,15 +18,15 @@ export class OrdersController {
     // private readonly orderTimeService:OrderTimeFrameService,
     private readonly fooditemService:FoodItemsService,
     private readonly paymentService:PaymentsService,
-
      
   ) {
     
   }
 
+  
   @Post()
   @ApiOperation({ summary: 'Create Orders if fooditems are available' })
-  @ApiResponse({ status: 200, description: 'Order created successfully' })
+  // @ApiResponse({ status: 200, description: 'Order created successfully' })
   async create(@Body() createOrderDto: CreateOrderDto) {
     try{
       // Array to store items with their `isOrderingAllowed` status
@@ -62,16 +62,29 @@ export class OrdersController {
         };
       }
 
-
       // Create the order if all items are allowed
       const order = await this.ordersService.create({
         ...createOrderDto,
-        status:'created'
       });
+
+      //Now also create payement
+      const createPaymentDto = {
+        customer:order.customer.toString(),
+        order:order._id.toString(),
+        amount:order.totalPrice,
+        paymentStatus:'pending',
+        paymentMethod:createOrderDto.paymentMethod,
+      };
+      const payment = await this.paymentService.create({
+        ...createPaymentDto,
+      })
 
       return {
         success: true,
-        order: order.toObject(),
+        order: {
+          ...order.toObject(),
+          token:payment.token
+        },
       };
     }catch (error) {
       throw new HttpException(
@@ -81,9 +94,10 @@ export class OrdersController {
     }
   }
 
+  
   @Patch('cancel/:id')
   @ApiOperation({ summary: 'Cancel order with reason' })
-  @ApiResponse({ status: 200, description: 'Order cancelled successfully' })
+  // @ApiResponse({ status: 200, description: 'Order cancelled successfully' })
   async update(@Param('id') id: string, @Body() updateOrderDto: UpdateOrderDto) {
     try{
       const order = await this.ordersService.findOne(id);
@@ -140,6 +154,31 @@ export class OrdersController {
     }
   }
 
+
+  @Get('checkout')
+  @ApiOperation({ summary: 'Check if fooditems are available' })
+  // @ApiResponse({ status: 200, description: 'Order created successfully' })
+  async checkOut(@Body() foodItems: string[]) {
+    try{
+      // Array to store items with their `isOrderingAllowed` status
+      const itemsWithStatus = await Promise.all(
+        foodItems.map(async (fd) => {
+          const fooditem= await this.fooditemService.findOne(fd);
+          const isOrderingAllowed = await this.fooditemService.isOrderingAllowed(fd);
+          return { foodItem: fooditem, isOrderingAllowed };
+        }),
+      );
+
+      
+      return itemsWithStatus;
+        
+    }catch (error) {
+      throw new HttpException(
+        error.message,
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 
   @Get('history/:userid')
   async findOrderHistory(@Param('userid') userid: string,) {

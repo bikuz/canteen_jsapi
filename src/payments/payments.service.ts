@@ -37,7 +37,6 @@ export class PaymentsService {
       const newPayment = new this.paymentModel({
         ...createPaymentDto,
         token,
-        paymentStatus:'pending',
       });
 
       const savedPayment = (await newPayment.save());

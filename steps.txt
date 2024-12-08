@@ -103,3 +103,30 @@
                 autoprefixer(),
             ],
         }),
+
+11. Svelte Routing
+        a. npm install svelte-routing
+        b. struction the files for routing as below
+                src/
+                        routes/
+                                Home.svelte
+                                About.svelte
+                                NotFound.svelte
+                        App.svelte
+        c. setup routing in App.svelte
+                import { Router, Route, Link } from 'svelte-routing';
+
+12. to compile and refresh page dynamically on development,
+        replace,
+                  "scripts": {
+                        "build": "rollup -c",
+                        "dev": "rollup -c -w",
+                        "start": "sirv public --no-clear"
+                        },
+        with
+
+                  "scripts": {
+                        "build": "rollup -c",
+                        "dev": "rollup -c -w",
+                        "start": "sirv public --single"
+                },
