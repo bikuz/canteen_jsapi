@@ -21,6 +21,13 @@ export class UserController {
   async findOne(@Param('id') id: string) {
     return this.userService.findOne(id);
   }
+  @Get(':id/profile')
+  async findProfile(@Param('id') id: string) {
+    const user= await this.userService.findOne(id);
+    return {
+      ...user.profile
+    }
+  }
 
   @Patch(':id')
   async update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
