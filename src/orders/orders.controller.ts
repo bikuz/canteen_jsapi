@@ -161,7 +161,7 @@ export class OrdersController {
   async checkItems(@Body() checkItemsDto: CheckItemsDto) {
     try {
       const { foodItems } = checkItemsDto;
-      
+
       if (!foodItems || !Array.isArray(foodItems)) {
         throw new HttpException('Invalid or missing foodItems array.', HttpStatus.BAD_REQUEST);
       }
@@ -173,11 +173,11 @@ export class OrdersController {
             return { foodItemId: fd, isOrderingAllowed: false, message: 'Food item not found.' };
           }
           const isOrderingAllowed = await this.fooditemService.isOrderingAllowed(fd);
-          return { foodItem, isOrderingAllowed };
+          return { ...foodItem, isOrderingAllowed };
         }),
       );
 
-      return { success: true, items: itemsWithStatus };
+      return { success: true, foodItems: itemsWithStatus };
     } catch (error) {
       throw new HttpException(
         error.message || 'An error occurred while checking food items.',
