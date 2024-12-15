@@ -155,10 +155,10 @@ export class OrdersController {
   }
 
 
-  @Get('checkout')
+  @Get('checkItems')
   @ApiOperation({ summary: 'Check if fooditems are available' })
   // @ApiResponse({ status: 200, description: 'Order created successfully' })
-  async checkOut(@Body() foodItems: string[]) {
+  async checkItems(@Body() foodItems: string[]) {
     try{
       // Array to store items with their `isOrderingAllowed` status
       const itemsWithStatus = await Promise.all(
