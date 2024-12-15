@@ -2,11 +2,12 @@ import { Controller, Get, Post, Body, Param, Patch, Delete } from '@nestjs/commo
 import { UploadedFile, UseInterceptors, Req, HttpException, NotFoundException, HttpStatus } from '@nestjs/common';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
-import { CreateOrderDto, UpdateOrderDto } from './dto';
+import { CreateOrderDto, UpdateOrderDto,CheckItemsDto } from './dto';
 
 import { FoodItemsService } from '../fooditems/fooditems.service';
 // import { OrderTimeFrameService } from '../ordertimeframe/ordertimeframe.service';
 import { CreatePaymentDto } from '../payments/dto';
+
 import { PaymentsService } from '../payments/payments.service';
 
 import { Request } from 'express';
@@ -155,30 +156,37 @@ export class OrdersController {
   }
 
 
-  @Get('checkItems')
-  @ApiOperation({ summary: 'Check if fooditems are available' })
-  // @ApiResponse({ status: 200, description: 'Order created successfully' })
-  async checkItems(@Body() foodItems: string[]) {
-    try{
-      // Array to store items with their `isOrderingAllowed` status
+  @Post('checkItems')
+  @ApiOperation({ summary: 'Check if food items are available' })
+  async checkItems(@Body() checkItemsDto: CheckItemsDto) {
+    try {
+      const { foodItems } = checkItemsDto;
+      
+      if (!foodItems || !Array.isArray(foodItems)) {
+        throw new HttpException('Invalid or missing foodItems array.', HttpStatus.BAD_REQUEST);
+      }
+
       const itemsWithStatus = await Promise.all(
         foodItems.map(async (fd) => {
-          const fooditem= await this.fooditemService.findOne(fd);
+          const foodItem = await this.fooditemService.findOne(fd);
+          if (!foodItem) {
+            return { foodItemId: fd, isOrderingAllowed: false, message: 'Food item not found.' };
+          }
           const isOrderingAllowed = await this.fooditemService.isOrderingAllowed(fd);
-          return { foodItem: fooditem, isOrderingAllowed };
+          return { foodItem, isOrderingAllowed };
         }),
       );
 
-      
-      return itemsWithStatus;
-        
-    }catch (error) {
+      return { success: true, items: itemsWithStatus };
+    } catch (error) {
       throw new HttpException(
-        error.message,
+        error.message || 'An error occurred while checking food items.',
         error.status || HttpStatus.INTERNAL_SERVER_ERROR,
       );
     }
   }
+
+
 
   @Get('history/:userid')
   async findOrderHistory(@Param('userid') userid: string,) {
