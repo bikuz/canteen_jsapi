@@ -318,37 +318,31 @@ async create(
 
             const baseUrl = `${req.protocol}://${req.get('host')}`;
 
-            // Step 1: Get all food items for the given category
-            const allFoodItems = await this.foodItemService.findByFields({
-                category: categoryId,
+            const menus = await this.menusService.findByFields({
+                repeatDay: { $in: [today] },  // Check if the day exists in repeatDay array
             });
 
-            if (!allFoodItems || allFoodItems.length === 0) {
+            if (menus.length === 0) {
+                // throw new NotFoundException(`No menus found for the day "${day}"`);
                 return [];
             }
 
-            // Step 2: Get all menus where repeatDay contains today
-            const menus = await this.menusService.findByFields({
-                repeatDay: { $in: [today] },
-            });
+            // Combine foodItems from all matching menus into a single array
+            const foodItems = menus.reduce((acc, menu) => {
+                if (menu.foodItems && Array.isArray(menu.foodItems)) {
+                    acc.push(...menu.foodItems);  // Add foodItems to the accumulator
+                }
+                return acc;
+            }, []);  // Start with an empty array
 
-            const todayFoodItemIds = new Set(
-                menus.flatMap(menu => menu.foodItems.map(item => item._id.toString()))
+            // Ensure unique food items by their _id
+            const uniqueFoodItems = Array.from(
+                new Map(foodItems.map(item => [item._id, item])).values()
             );
-
-            // console.log(todayFoodItemIds);
-            // Step 3: Mark availability for each food item
-            const foodItemsWithAvailability = allFoodItems.map(foodItem => {
-                const isAvailable = todayFoodItemIds.has(foodItem._id.toString());
-                return {
-                    ...foodItem,
-                    isAvailable,
-                    // image: foodItem.image ? `${baseUrl}/${foodItem.image}` : null, // Add base URL for image
-                };
-            });
+            
 
             const fooditemWithOrdering = await Promise.all(
-                foodItemsWithAvailability.map(async (_item) => {
+              uniqueFoodItems.map(async (_item) => {
                     const isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', _item.category.toString());
                     const ordertimeframe_food= await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
                     const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
