@@ -96,23 +96,29 @@ export class OrdersService {
     }
   }
 
-  async isCancelAllowed(orderId: string):Promise<boolean>{
-    try{
+  async isCancelAllowed(orderId: string): Promise<boolean> {
+    try {
+      // Only select the createdAt field we need
+      const order = await this.orderModel
+        .findById(orderId)
+        .select('createdAt')
+        .lean()
+        .exec();
 
-      const order = await this.findOne(orderId);
+      if (!order) {
+        throw new NotFoundException(`Order #${orderId} not found`);
+      }
 
-      // Check if the order is within the cancellation window
       const cancelTime = this.configService.get<string>('ORDER_CANCEL_TIME');
       const currentTime = new Date();
       const cancellationDeadline = new Date(order.createdAt);
-      cancellationDeadline.setMinutes(cancellationDeadline.getMinutes() + parseInt(cancelTime)); // 5 minutes window
+      cancellationDeadline.setMinutes(cancellationDeadline.getMinutes() + parseInt(cancelTime));
 
-       return currentTime > cancellationDeadline;
-       
-    }catch (error) {
+      return currentTime <= cancellationDeadline;
+      
+    } catch (error) {
       throw new Error(`Error checking order cancellation: ${error.message}`);
-  }
-
+    }
   }
 
   async remove(id: string): Promise<Order> {

@@ -3,6 +3,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
+import * as yaml from 'js-yaml';
+import { readFileSync } from 'fs';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -22,12 +24,25 @@ import { PassportModule } from '@nestjs/passport';
 import { DiscountModule } from './discount/discount.module';
 import { OrderTimeFrameModule } from './ordertimeframe/ordertimeframe.module';
 
+// Load YAML configuration
+const loadYamlConfig = () => {
+  try {
+    return yaml.load(
+      readFileSync(join(__dirname, '../config/app.config.yml'), 'utf8'),
+    ) as Record<string, any>;
+  } catch (e) {
+    console.error('Error loading YAML config:', e);
+    return {};
+  }
+};
 
 @Module({
   imports: [
     // MongooseModule.forRoot('mongodb://localhost/canteen_icimod'),
     ConfigModule.forRoot({
       isGlobal: true, // makes ConfigModule available application-wide
+      load: [loadYamlConfig],  // Load YAML config
+      envFilePath: '.env', // Load .env file
     }),
     PassportModule.register({ session: false }),
     MongooseModule.forRootAsync({

@@ -5,7 +5,7 @@ export class CreateOrderDto {
   @IsNotEmpty()
   @IsMongoId()
   @ApiProperty({ description: 'UserID of customer', example: '' })
-  customer: string;
+  customer?: string;
 
   @IsArray()
   @ArrayNotEmpty()

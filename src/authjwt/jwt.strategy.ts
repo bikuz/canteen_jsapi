@@ -18,6 +18,13 @@ export class JwtStrategy extends PassportStrategy(Strategy,'jwt') {
   }
 
   async validate(payload: any) {
-    return this.userService.findOne(payload.sub); // Payload should include 'sub' for user ID
+    return this.userService.findOne(payload.sub);
   }
+
+  // async validate(payload: any) {
+  //   return { 
+  //     userId: payload.sub,
+  //     username: payload.username 
+  //   };
+  // }
 }

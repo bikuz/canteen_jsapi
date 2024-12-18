@@ -102,9 +102,10 @@ export class OrderTimeFrameService {
             applicableId: entityId,
             isActive: true,
           });
-      
-          if (!timeframe) return true; // No time frame means always allowed
           
+          if (!timeframe) return true; // No time frame means always allowed
+          if(timeframe.orderingStartTime === timeframe.orderingEndTime) return true;
+
           const now = new Date();
           const currentSeconds = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
           return (

@@ -23,7 +23,7 @@
 // }
 
 // auth.controller.ts
-import { Controller, Post, Body, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Request, Query, Headers } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './local-auth.guard';
 import { LdapAuthGuard } from '../auth/ldap.guard';
@@ -52,6 +52,11 @@ export class AuthController {
     return this.authService.login(user);
   }
 
+  @Post('refresh')
+  async refresh(@Body() body: { refresh_token: string }) {
+    return this.authService.refreshToken(body.refresh_token);
+  }
+  
   @Post('register')
   async register(@Body() createUserDto: any) {
     return this.authService.register(createUserDto);
@@ -61,5 +66,16 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   logout(@Request() req) {
     return { message: 'Logged out successfully' };
+  }
+
+  @Get('validate-route')
+  // @UseGuards(JwtAuthGuard)
+  async validateRoute(
+    @Query('returnUrl') returnUrl: string,
+    // @Request() req,
+    @Headers('origin') origin: string,
+  ) {
+    const isValid = await this.authService.isValidRoute(returnUrl, origin);
+    return { isValid, safeUrl: isValid ? returnUrl : '/' };
   }
 }

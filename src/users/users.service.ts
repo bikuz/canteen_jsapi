@@ -33,7 +33,7 @@ export class UserService {
     }
     return user;
   }
-
+  
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
 
     if (updateUserDto.password) {
