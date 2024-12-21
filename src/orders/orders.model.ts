@@ -8,6 +8,9 @@ export class Order extends Document {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
   customer: Types.ObjectId;
 
+  @Prop({ type: String, unique: true})
+  shortId: string;
+
   // @Prop([{ type: Types.ObjectId, ref: 'FoodItem', required: true }])
   // foodItems: Types.ObjectId[];
 

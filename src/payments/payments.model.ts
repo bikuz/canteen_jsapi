@@ -20,8 +20,8 @@ export class Payment extends Document {
   @Prop({ required: true, enum: ['pending', 'paid', 'failed','refund','cancelled'] })  
   paymentStatus: string;
 
-  @Prop({ type: Number, default: null })
-  token: number | null;
+  @Prop({default: null })
+  token: string | null;
 
   @Prop({ required: true })
   amount: number;

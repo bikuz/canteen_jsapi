@@ -323,7 +323,6 @@ async create(
             });
 
             if (menus.length === 0) {
-                // throw new NotFoundException(`No menus found for the day "${day}"`);
                 return [];
             }
 
@@ -335,33 +334,34 @@ async create(
                 return acc;
             }, []);  // Start with an empty array
 
-            // Ensure unique food items by their _id
+            // Ensure unique food items by their _id and filter by category and availability
             const uniqueFoodItems = Array.from(
                 new Map(foodItems.map(item => [item._id, item])).values()
-            );
-            
+            ).filter(item => item.category.toString() === categoryId && item.isAvailable);
 
             const fooditemWithOrdering = await Promise.all(
-              uniqueFoodItems.map(async (_item) => {
+                uniqueFoodItems.map(async (_item) => {
                     const isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', _item.category.toString());
-                    const ordertimeframe_food= await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
+                    const ordertimeframe_food = await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
                     const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
                     const isOrderingAllowed = isOrderingAllowed_cat && isOrderingAllowed_food;
 
-                  return {
-                      ..._item,  
-                      image: _item.image ? `${baseUrl}/${_item.image}` : null,
-                      orderingStartTime:ordertimeframe_food?ordertimeframe_food.orderingStartTime:0,
-                      orderingEndTime:ordertimeframe_food?ordertimeframe_food.orderingEndTime:0,
-                      isOrderTimeFrameActive:ordertimeframe_food?ordertimeframe_food.isActive:false,
-                      isOrderingAllowed,  
-                  };
-                }),
+                    if (isOrderingAllowed) {
+                        return {
+                            ..._item,
+                            image: _item.image ? `${baseUrl}/${_item.image}` : null,
+                            orderingStartTime: ordertimeframe_food ? ordertimeframe_food.orderingStartTime : 0,
+                            orderingEndTime: ordertimeframe_food ? ordertimeframe_food.orderingEndTime : 0,
+                            isOrderTimeFrameActive: ordertimeframe_food ? ordertimeframe_food.isActive : false,
+                            isOrderingAllowed,
+                        };
+                    }
+                })
             );
 
-            return fooditemWithOrdering;
+            // Filter out undefined values (items that are not allowed for ordering)
+            return fooditemWithOrdering.filter(item => item !== undefined);
 
-            // return foodItemsWithAvailability;
         } catch (error) {
             console.error('Error fetching food items by category:', error);
             return [];

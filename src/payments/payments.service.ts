@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Payment } from './payments.model';
 import { CreatePaymentDto, UpdatePaymentDto } from './dto';
+import { generateCode } from '../helper/code-generator';
 
 
 @Injectable()
@@ -13,27 +14,24 @@ export class PaymentsService {
     
 ) {}
 
-  /**
-   * Generates the next token for the day.
-   * Tokens start from 101 every day and increment sequentially.
-   */
-  private async generateToken(): Promise<number> {
-    // Get the current date's start (midnight)
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
 
-    // Count the payments created since the start of the day
-    const countToday = await this.paymentModel.countDocuments({
-      createdAt: { $gte: startOfDay },
-    });
+  // private async generateToken(): Promise<number> {
+  //   // Get the current date's start (midnight)
+  //   const startOfDay = new Date();
+  //   startOfDay.setHours(0, 0, 0, 0);
 
-    // Token starts from 101, so add 101 to the count
-    return 101 + countToday;
-  }
+  //   // Count the payments created since the start of the day
+  //   const countToday = await this.paymentModel.countDocuments({
+  //     createdAt: { $gte: startOfDay },
+  //   });
+
+  //   // Token starts from 101, so add 101 to the count
+  //   return 101 + countToday;
+  // }
 
   async create(createPaymentDto: CreatePaymentDto): Promise<Payment> {
     try{
-      const token = await this.generateToken(); // Generate the token for this payment
+      const token = generateCode(4);// Generate the token for this payment
       const newPayment = new this.paymentModel({
         ...createPaymentDto,
         token,
@@ -61,22 +59,27 @@ export class PaymentsService {
     return existingPayment;
   }
 
-  async updateStatus(id: string, status:string): Promise<Payment> {
+  async updateStatus(orderid: string, status:string): Promise<Payment> {
     const updatePaymentDto={
-      status:status
+      paymentStatus:status
     };
 
     const filteredUpdate = Object.fromEntries(
       Object.entries(updatePaymentDto).filter(([_, value]) => value !== null && value !== undefined)
     );
 
+    // const existingPayment = await this.paymentModel
+    // .findByIdAndUpdate(id, filteredUpdate, { new: true , lean:true})
+    // .populate('order')
+    // .exec();
+    
     const existingPayment = await this.paymentModel
-    .findByIdAndUpdate(id, filteredUpdate, { new: true , lean:true})
+    .findOneAndUpdate({order:orderid}, filteredUpdate, { new: true , lean:true})
     .populate('order')
     .exec();
-    
+
     if (!existingPayment) {
-      throw new NotFoundException(`Payment #${id} not found`);
+      throw new NotFoundException(`Payment order #${orderid} not found`);
     }
     return existingPayment;
   }
