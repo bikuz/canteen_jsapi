@@ -1,7 +1,7 @@
 import { Controller, Get, Post, Body, Param, Patch, Delete, Query } from '@nestjs/common';
 import { UploadedFile, UseInterceptors, Req, HttpException, NotFoundException, HttpStatus } from '@nestjs/common';
 import { ApiOperation, ApiResponse } from '@nestjs/swagger';
- 
+import { ConfigService } from '@nestjs/config';
  
 
 import { OrdersService } from './orders.service';
@@ -12,6 +12,7 @@ import { FoodItemsService } from '../fooditems/fooditems.service';
 import { CreatePaymentDto } from '../payments/dto';
 
 import { PaymentsService } from '../payments/payments.service';
+import { UserService } from '../users/users.service';
 
 import { Request } from 'express';
 import { UseGuards } from '@nestjs/common';
@@ -25,7 +26,8 @@ export class OrdersController {
     // private readonly orderTimeService:OrderTimeFrameService,
     private readonly fooditemService:FoodItemsService,
     private readonly paymentService:PaymentsService,
-     
+    private readonly userService:UserService,
+    private readonly configService:ConfigService,
   ) {
     
   }
@@ -52,8 +54,6 @@ export class OrdersController {
       // Get user ID from the token
       const userId = req.user?._id;
 
-       
-  
       const shortId = generateShortId('ORD',4);
       // Add userId to the order an shortId
       const orderWithUser = {
@@ -119,7 +119,8 @@ export class OrdersController {
         success: true,
         order: {
           ...order.toObject(),
-          token:payment.token
+          token:payment.token,
+          cancelTime: this.configService.get<string>('ORDER_CANCEL_TIME')
         },
       };
     }catch (error) {
@@ -172,13 +173,13 @@ export class OrdersController {
         cancelledAt: cancelDate,
       });
 
-      // if payment as been initiated, make paymentstatus cancelled
-      const pay = this.paymentService.filterOne({order:id});
-      if(pay){
-        await this.paymentService.updateStatus((await pay)._id.toString(), 'cancelled');
-      }
+      await this.paymentService.updateStatus(id, 'cancelled');
 
-      return updatedOrder;
+      return {
+        success: true,
+        order: updatedOrder,
+        message: 'Order cancelled successfully'
+      };
 
     }catch (error) {
       if (error instanceof NotFoundException) {
@@ -195,7 +196,8 @@ export class OrdersController {
   @ApiOperation({ summary: 'Cancel order with reason' })
   async cancelOrderByUser(
     @Req() req: Request& { user?: any },
-    @Param('id') id: string, @Body() updateOrderDto: UpdateOrderDto
+    @Param('id') id: string,
+    @Body() updateOrderDto: UpdateOrderDto
   ) {
     try{
 
@@ -250,11 +252,7 @@ export class OrdersController {
         cancelledAt: cancelDate,
       });
 
-      // if payment as been initiated, make paymentstatus cancelled
-      const pay = await this.paymentService.filterOne({order:id});
-      if(pay){
-        await this.paymentService.updateStatus(pay._id.toString(), 'cancelled');
-      }
+      await this.paymentService.updateStatus(id, 'cancelled');
 
       return {
         success: true,
@@ -380,7 +378,8 @@ export class OrdersController {
     @Query('endDate') endDate?: string,
     @Query('paymentStatus') paymentStatus?: string,
     @Query('token') token?: string,
-    @Query('shortId') shortId?: string
+    @Query('shortId') shortId?: string,
+    @Query('orderStatus') orderStatus?: string
   ) {
     try {
       // Build query object
@@ -404,6 +403,10 @@ export class OrdersController {
         query.shortId = shortId;
       }
 
+      if (orderStatus) {
+        query.status = orderStatus;
+      }
+
       const orders = await this.ordersService.findAll(query);
 
       const ordersWithCancelStatus = await Promise.all(
@@ -412,6 +415,7 @@ export class OrdersController {
           return {
             ...item,
             token: payment.token,
+            userProfile: await this.userService.findProfile(item.customer.toString()),
             paymentStatus: payment.paymentStatus,
             paymentMethod: payment.paymentMethod,
             isCancelAllowed: await this.ordersService.isCancelAllowed(item._id.toString())
@@ -553,28 +557,37 @@ export class OrdersController {
     }
   }
 
-  @Patch(':id/payment')
-  @UseGuards(JwtAuthGuard)
-  @ApiOperation({ summary: 'Process payment for an order' })
-  async processPayment(
-    @Req() req: Request & { user?: any },
-    @Param('id') id: string,
-  ) {
-    try {
+@Patch(':id/payment')
+@UseGuards(JwtAuthGuard)
+@ApiOperation({ summary: 'Process payment for an order' })
+async processPayment(
+  @Req() req: Request & { user?: any },
+  @Param('id') id: string,
+  @Body() body: { paymentMethod: string }
+) {
+  try {
+    const { paymentMethod } = body;
 
-      const pay = await this.paymentService.updateStatus(id,'paid');
 
-      return {
-        success: true,
-        message: 'Payment processed successfully',
-        pay,
-      };
-    } catch (error) {
-      throw new HttpException(
-        error.message,
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR
-      );
-    }
+    const pay = await this.paymentService.updateStatus(
+      id, 'paid', paymentMethod, new Date(Date.now())
+    );
+
+    const order = await this.ordersService.update(id, {
+      status: 'completed',
+    });
+
+    return {
+      success: true,
+      message: 'Payment processed successfully',
+      order,
+    };
+  } catch (error) {
+    throw new HttpException(
+      error.message,
+      error.status || HttpStatus.INTERNAL_SERVER_ERROR
+    );
   }
+}
 }
  

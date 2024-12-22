@@ -6,6 +6,7 @@ import { Order, OrderSchema } from './orders.model';
 import { OrderTimeFrameModule } from '../ordertimeframe/ordertimeframe.module';
 import { FoodItemsModule } from '../fooditems/fooditems.module';
 import { PaymentsModule } from '../payments/payments.module';
+import { UserModule } from '../users/users.module';
 @Module({
   imports: [MongooseModule.forFeature([
     { name: Order.name, schema: OrderSchema }
@@ -13,6 +14,7 @@ import { PaymentsModule } from '../payments/payments.module';
   OrderTimeFrameModule,
   FoodItemsModule,
   forwardRef(() => PaymentsModule),
+  UserModule
 ],
   controllers: [OrdersController],
   providers: [OrdersService],

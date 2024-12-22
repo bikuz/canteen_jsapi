@@ -59,30 +59,27 @@ export class PaymentsService {
     return existingPayment;
   }
 
-  async updateStatus(orderid: string, status:string): Promise<Payment> {
-    const updatePaymentDto={
-      paymentStatus:status
+  async updateStatus(orderid: string, status: string, paymentMethod: string = 'cash', paymentDate: Date | null = null): Promise<Payment> {
+    const updatePaymentDto = {
+      paymentStatus: status,
+      paymentMethod: paymentMethod,
+      paymentDate: paymentDate
     };
 
     const filteredUpdate = Object.fromEntries(
       Object.entries(updatePaymentDto).filter(([_, value]) => value !== null && value !== undefined)
     );
 
-    // const existingPayment = await this.paymentModel
-    // .findByIdAndUpdate(id, filteredUpdate, { new: true , lean:true})
-    // .populate('order')
-    // .exec();
-    
     const existingPayment = await this.paymentModel
-    .findOneAndUpdate({order:orderid}, filteredUpdate, { new: true , lean:true})
-    .populate('order')
-    .exec();
+      .findOneAndUpdate({ order: orderid }, filteredUpdate, { new: true, lean: true })
+      .populate('order')
+      .exec();
 
     if (!existingPayment) {
       throw new NotFoundException(`Payment order #${orderid} not found`);
     }
     return existingPayment;
-  }
+}
 
   // async findAll(): Promise<Payment[]> {
   //   try{

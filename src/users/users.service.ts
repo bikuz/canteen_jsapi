@@ -33,6 +33,13 @@ export class UserService {
     }
     return user;
   }
+  async findProfile(id: string): Promise<User["profile"]> {
+    const user = await this.userModel.findById(id).populate('role').exec();
+    if (!user) {
+      throw new NotFoundException(`User with ID "${id}" not found`);
+    }
+    return user.profile;
+  }
   
   async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
 
