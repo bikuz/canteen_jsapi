@@ -24,7 +24,6 @@ export class UserController {
   @Get(':id/profile')
   async findProfile(@Param('id') id: string) {
     return await this.userService.findProfile(id);
-    
   }
 
   @Patch(':id')

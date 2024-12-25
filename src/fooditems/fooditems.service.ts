@@ -83,6 +83,19 @@ export class FoodItemsService {
         }
     }
 
+    async findByPageByCategory(page: number, limit: number, categoryId: string): Promise<{ fooditems: FoodItem[]; total: number }> {
+        try {
+            const skip = (page - 1) * limit;
+            const [fooditems, total] = await Promise.all([
+                this.foodItemModel.find({ category: categoryId }).skip(skip).limit(limit).lean().exec(),
+                this.foodItemModel.countDocuments({ category: categoryId }).exec(),
+            ]);
+            return { fooditems, total };
+        } catch (error) {
+            throw new Error(`Error fetching food items by category: ${error.message}`);
+        }
+    }
+
     async isOrderingAllowed(id:string): Promise<boolean>{
         try{
             const fooditem = await this.foodItemModel.findById(id).lean().exec();

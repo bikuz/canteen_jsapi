@@ -326,6 +326,55 @@ export class FooditemsController {
       }
     }
 
+    @Get('page/:page/limit/:limit/category/:categoryId')
+    async findByPageByCategory(
+      @Param('page') page: string,
+      @Param('limit') limit: string,
+      @Param('categoryId') categoryId: string,
+      @Req() req: Request
+    ){
+      try {
+        const pageNumber = parseInt(page, 10);
+        const limitNumber = parseInt(limit, 10);
+        // Validate the parameters
+        if (isNaN(pageNumber) || isNaN(limitNumber) || pageNumber < 1 || limitNumber < 1) {
+          throw new HttpException('Page and limit must be positive integers.', HttpStatus.BAD_REQUEST);
+        }
+
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const {fooditems,total} = await this.foodItemService.findByPageByCategory(pageNumber,limitNumber,categoryId);
+        
+        const foodItemWithOrdering = await Promise.all(
+            fooditems.map(async (_item) => {
+   
+            const isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', _item.category.toString());
+            const ordertimeframe_food= await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
+            const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
+            const isOrderingAllowed = isOrderingAllowed_cat && isOrderingAllowed_food;
+
+            return {
+              ..._item, // Convert category to plain object
+              image: _item.image ? `${baseUrl}/${_item.image}` : null,
+              orderingStartTime:ordertimeframe_food?ordertimeframe_food.orderingStartTime:0,
+              orderingEndTime:ordertimeframe_food?ordertimeframe_food.orderingEndTime:0,
+              isOrderTimeFrameActive:ordertimeframe_food?ordertimeframe_food.isActive:false,
+              isOrderingAllowed, // Add the isOrderingAllowed field
+            };
+          }),
+        );
+        
+        return {fooditems:foodItemWithOrdering,total};
+
+      } catch (error) {
+        if (error instanceof NotFoundException) {
+            throw error;
+        }
+        throw new HttpException(
+          error.message,
+          error.status || HttpStatus.INTERNAL_SERVER_ERROR);
+      }
+    }
+
 
     @Delete(':id')
     async remove(@Param('id') id: string) {
