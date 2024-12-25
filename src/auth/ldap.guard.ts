@@ -7,7 +7,7 @@ export class LdapAuthGuard extends AuthGuard('ldap') {
         console.log('LdapAuthGuard hit'); // Log to check if it reaches here
         try {
           const result = (await super.canActivate(context)) as boolean;
-          console.log('Guard result:', result); // Log the result of the guard
+          // console.log('Guard result:', result); // Log the result of the guard
           return result;
         } catch (error) {
           console.error('Error in LdapAuthGuard:', error); // Log the error if something goes wrong

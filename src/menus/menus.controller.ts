@@ -9,6 +9,7 @@ import { CreateMenuDto, UpdateMenuDto } from './dto';
 import { OrderTimeFrame } from '../ordertimeframe/ordertimeframe.model';
 import { OrderTimeFrameService } from '../ordertimeframe/ordertimeframe.service';
 import { FoodItemsService } from '../fooditems/fooditems.service';
+import { CategoriesService } from '../categories/categories.service';
 
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
@@ -28,6 +29,7 @@ export class MenusController {
     private readonly menusService: MenusService,
     private readonly foodItemService: FoodItemsService,
     private readonly orderTimeFrameService:OrderTimeFrameService,
+    private readonly categoryService:CategoriesService,
     @InjectModel(OrderTimeFrame.name) private orderTimeFrameModel: Model<OrderTimeFrame>,
   ) {}
 
@@ -187,52 +189,50 @@ async create(
     ) {
         try {
             const baseUrl = `${req.protocol}://${req.get('host')}`;
-            // Use the findByFields service to find menus where repeatDay contains the provided day
             const menus = await this.menusService.findByFields({
-                repeatDay: { $in: [day] },  // Check if the day exists in repeatDay array
+                repeatDay: { $in: [day] },
             });
 
             if (menus.length === 0) {
-                // throw new NotFoundException(`No menus found for the day "${day}"`);
                 return [];
             }
 
-            // Combine foodItems from all matching menus into a single array
             const foodItems = menus.reduce((acc, menu) => {
                 if (menu.foodItems && Array.isArray(menu.foodItems)) {
-                    acc.push(...menu.foodItems);  // Add foodItems to the accumulator
+                    acc.push(...menu.foodItems);
                 }
                 return acc;
-            }, []);  // Start with an empty array
+            }, []);
 
-            // Ensure unique food items by their _id
             const uniqueFoodItems = Array.from(
                 new Map(foodItems.map(item => [item._id, item])).values()
             );
-            
+
             const fooditemWithOrdering = await Promise.all(
-              uniqueFoodItems.map(async (_item) => {
+                uniqueFoodItems.map(async (_item) => {
+                    const isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', _item.category.toString());
+                    const ordertimeframe_food = await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
+                    const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
+                    const isOrderingAllowed = isOrderingAllowed_cat && isOrderingAllowed_food;
 
-              const isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', _item.category.toString());
-              const ordertimeframe_food= await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
-              const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
-              const isOrderingAllowed = isOrderingAllowed_cat && isOrderingAllowed_food;
+                    // Fetch category details
+                    const category = await this.categoryService.findOne(_item.category.toString());
 
-                return {
-                    ..._item,  
-                    image: _item.image ? `${baseUrl}/${_item.image}` : null,
-                    orderingStartTime:ordertimeframe_food?ordertimeframe_food.orderingStartTime:0,
-                    orderingEndTime:ordertimeframe_food?ordertimeframe_food.orderingEndTime:0,
-                    isOrderTimeFrameActive:ordertimeframe_food?ordertimeframe_food.isActive:false,
-                    isOrderingAllowed,  
-                };
-              }),
-          );
-          return fooditemWithOrdering;
+                    return {
+                        ..._item,
+                        image: _item.image ? `${baseUrl}/${_item.image}` : null,
+                        orderingStartTime: ordertimeframe_food ? ordertimeframe_food.orderingStartTime : 0,
+                        orderingEndTime: ordertimeframe_food ? ordertimeframe_food.orderingEndTime : 0,
+                        isOrderTimeFrameActive: ordertimeframe_food ? ordertimeframe_food.isActive : false,
+                        isOrderingAllowed,
+                        category,  // Include category details
+                    };
+                }),
+            );
+            return fooditemWithOrdering;
 
         } catch (error) {
             return [];
-            
         }
     }
 
@@ -290,6 +290,8 @@ async create(
                 const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
                 const isOrderingAllowed = isOrderingAllowed_cat && isOrderingAllowed_food;
 
+                const category = await this.categoryService.findOne(_item.category.toString());
+
                   return {
                       ..._item,  
                       image: _item.image ? `${baseUrl}/${_item.image}` : null,
@@ -297,6 +299,7 @@ async create(
                       orderingEndTime:ordertimeframe_food?ordertimeframe_food.orderingEndTime:0,
                       isOrderTimeFrameActive:ordertimeframe_food?ordertimeframe_food.isActive:false,
                       isOrderingAllowed,  
+                      category
                   };
                 }),
             );

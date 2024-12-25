@@ -44,10 +44,7 @@ export class AuthController {
   @UseGuards(LdapAuthGuard)
   async loginLdap(@Request() req){
     const ldapUser = req.user;
-    
-
-    console.log('hit login/ldap');
-    
+    // console.log('hit login/ldap');
     const user = await this.authService.validateLdapUser(ldapUser);
     return this.authService.login(user);
   }

@@ -16,6 +16,7 @@ import { OrderTimeFrameModule } from '../ordertimeframe/ordertimeframe.module';
   FoodItemsModule,
 ],
   providers: [CategoriesService],
-  controllers: [CategoriesController]
+  controllers: [CategoriesController],
+  exports: [CategoriesService,MongooseModule],
 })
 export class CategoriesModule {}

@@ -6,6 +6,7 @@ import { Menu, MenuSchema } from './menus.model';
 import { OrderTimeFrameModule } from '../ordertimeframe/ordertimeframe.module';
 import { FoodItemsModule } from '../fooditems/fooditems.module';
 import { LoggerMiddleware } from './middleWare';
+import { CategoriesModule } from '../categories/categories.module';
 
 @Module({
   imports:[MongooseModule.forFeature([
@@ -13,6 +14,7 @@ import { LoggerMiddleware } from './middleWare';
   ]),
   OrderTimeFrameModule,
   FoodItemsModule,
+  CategoriesModule,
 ],
   providers: [MenusService],
   controllers: [MenusController]
