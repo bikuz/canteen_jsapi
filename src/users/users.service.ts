@@ -2,13 +2,16 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User } from './users.model';
+import { Role } from '../role/role.model';
 import { CreateUserDto,UpdateUserDto } from './dto';
 import * as bcrypt from 'bcryptjs';
+import { FlattenMaps } from 'mongoose';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<User>,
+    @InjectModel(Role.name) private readonly roleModel: Model<Role>,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {    
@@ -22,41 +25,72 @@ export class UserService {
   }
 
   
-  async findAll(): Promise<User[]> {
-    return this.userModel.find().populate('role').exec();
+  async findAll():Promise<FlattenMaps<User>[]> {
+    return this.userModel.find()
+      .select('-password')
+      .populate('roles')
+      .lean()
+      .exec();
   }
 
   async findOne(id: string): Promise<User> {
-    const user = await this.userModel.findById(id).populate('role').exec();
+    const user = await this.userModel.findById(id)
+    .select('-password')
+      .populate('roles')
+      .exec();
     if (!user) {
       throw new NotFoundException(`User with ID "${id}" not found`);
     }
     return user;
   }
+  
   async findProfile(id: string): Promise<User["profile"]> {
-    const user = await this.userModel.findById(id).populate('role').exec();
+    const user = await this.userModel.findById(id).populate('roles').exec();
     if (!user) {
       throw new NotFoundException(`User with ID "${id}" not found`);
     }
     return user.profile;
   }
   
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
+  async update(id: string, updateUserDto: UpdateUserDto):Promise<FlattenMaps<User>> {
+    // First get the existing user
+    const existingUser = await this.findOne(id);
 
-    if (updateUserDto.password) {
-        const salt = await bcrypt.genSalt();
-        updateUserDto.password = await bcrypt.hash(updateUserDto.password, salt);
-      }
-  
-      const updatedUser = await this.userModel.findByIdAndUpdate(id, updateUserDto, { new: true }).exec();
-      if (!updatedUser) {
-        throw new NotFoundException(`User #${id} not found`);
-      }
-      return updatedUser;
+    // Filter out null, undefined, or empty string values from updateUserDto
+    const filteredUpdates = Object.fromEntries(
+      Object.entries(updateUserDto).filter(([_, value]) => value !== null && value !== undefined && value !== '')
+    );
+
+    // Handle password encryption first if it exists
+    if (filteredUpdates.password) {
+      const salt = await bcrypt.genSalt();
+      filteredUpdates.password = await bcrypt.hash(filteredUpdates.password, salt);
+    }
+
+    // Merge existing data with filtered updates
+    const mergedData = {
+      ...existingUser.toObject(),
+      ...filteredUpdates
+    };
+
+    const updatedUser = await this.userModel.findByIdAndUpdate(
+      id, 
+      mergedData, 
+      { new: true }
+    ).lean().exec();
+
+    if (!updatedUser) {
+      throw new NotFoundException(`User #${id} not found`);
+    }
+    return updatedUser;
   }
 
-  async remove(id: string): Promise<User> {
-    const deletedUser = await this.userModel.findByIdAndDelete(id).exec();
+  async remove(id: string): Promise<FlattenMaps<User>> {
+    const deletedUser = await this.userModel.findByIdAndDelete(id)
+    .select('-password')
+    .populate('roles')
+    .lean()
+    .exec();
     if (!deletedUser) {
       throw new NotFoundException(`User with ID "${id}" not found`);
     }
@@ -64,6 +98,36 @@ export class UserService {
   }
 
   async findByUsername(username: string): Promise<User> {
-    return this.userModel.findOne({ username }).populate('role').exec();
+    return this.userModel.findOne({ username })
+    // .select('-password')
+    .populate('roles')
+    .exec();
+  }
+
+  async findUserRole(userId: string): Promise<Role[]> {
+    const user = await this.userModel.findById(userId).populate('roles');
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+    return user.roles || [];
+  }
+  
+  async findAllExceptSuperAdmin(): Promise<FlattenMaps<User>[]> {
+    // Find the super-admin role ID first
+    const superAdminRole = await this.roleModel.findOne({ name: 'super-admin' }).exec();
+    
+    if (!superAdminRole) {
+      throw new NotFoundException('Super-admin role not found');
+    }
+
+    const said = superAdminRole._id;
+    return this.userModel.find()
+      .select('-password')
+      .populate('roles')
+      .lean()
+      .exec()
+      .then(users => users.filter(user => 
+        !user.roles.some(role => role._id.toString() === said.toString())
+      ));
   }
 }

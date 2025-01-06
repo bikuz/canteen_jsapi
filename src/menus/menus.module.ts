@@ -7,6 +7,7 @@ import { OrderTimeFrameModule } from '../ordertimeframe/ordertimeframe.module';
 import { FoodItemsModule } from '../fooditems/fooditems.module';
 import { LoggerMiddleware } from './middleWare';
 import { CategoriesModule } from '../categories/categories.module';
+import { UserModule } from '../users/users.module';
 
 @Module({
   imports:[MongooseModule.forFeature([
@@ -15,6 +16,7 @@ import { CategoriesModule } from '../categories/categories.module';
   OrderTimeFrameModule,
   FoodItemsModule,
   CategoriesModule,
+  UserModule  
 ],
   providers: [MenusService],
   controllers: [MenusController]

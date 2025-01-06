@@ -3,10 +3,14 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Role } from './role.model';
 import { CreateRoleDto, UpdateRoleDto } from './dto';
+import { User } from '../users/users.model';
 
 @Injectable()
 export class RoleService {
-  constructor(@InjectModel(Role.name) private roleModel: Model<Role>) {}
+  constructor(
+    @InjectModel(Role.name) private roleModel: Model<Role>,
+    @InjectModel(User.name) private readonly userModel: Model<User>,
+  ) {}
 
   async create(createRoleDto: CreateRoleDto): Promise<Role> {
     const createdRole = new this.roleModel(createRoleDto);
@@ -16,6 +20,7 @@ export class RoleService {
   async findAll(): Promise<Role[]> {
     return this.roleModel.find().exec();
   }
+
 
   async findOne(id: string): Promise<Role> {
     const role = await this.roleModel.findById(id).exec();
@@ -35,7 +40,7 @@ export class RoleService {
 
   async update(id: string, updateRoleDto: UpdateRoleDto): Promise<Role> {
     // Transform permissions if needed
-    if (updateRoleDto.permissions) {
+    if (!updateRoleDto.permissions) {
         updateRoleDto.permissions = new Map(Object.entries(updateRoleDto.permissions));
     }
 
@@ -58,11 +63,21 @@ export class RoleService {
     return role.save();
   }
 
+  async hasPermission(id: string, controllerName: string, actionName: string): Promise<boolean> {
+    const role = await this.findOne(id);
+    return role.permissions.get(controllerName)?.get(actionName) || false;
+  }
+  
   async remove(id: string): Promise<Role> {
     const deletedRole = await this.roleModel.findByIdAndDelete(id).exec();
     if (!deletedRole) {
       throw new NotFoundException(`Role #${id} not found`);
     }
     return deletedRole;
+  }
+
+  async checkRoleHasUsers(id: string): Promise<boolean> {
+    const usersWithRole = await this.userModel.countDocuments({ roleId: id });
+    return usersWithRole > 0;
   }
 }

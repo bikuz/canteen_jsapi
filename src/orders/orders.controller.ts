@@ -18,8 +18,10 @@ import { Request } from 'express';
 import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../authjwt/jwt-auth.guard';
 import { generateShortId } from '../helper/code-generator';
+import { DynamicRolesGuard } from '../helper/dynamic-auth.guard';
 
 @Controller('orders')
+@UseGuards(JwtAuthGuard, DynamicRolesGuard)
 export class OrdersController {
   constructor(
     private readonly ordersService: OrdersService,
@@ -34,7 +36,6 @@ export class OrdersController {
 
   
   @Post()
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Create Orders if fooditems are available' })
   // @ApiResponse({ status: 200, description: 'Order created successfully' })
   async create(
@@ -131,6 +132,66 @@ export class OrdersController {
     }
   }
 
+  @Post('createOrderPayment')
+  @ApiOperation({ summary: 'Create completed order with paid payment' })
+  async createOrderPayment(
+    @Req() req: Request& { user?: any },
+    @Body() createOrderDto: CreateOrderDto
+  ) {
+    try {
+      // Check if user is logged in
+      if (!req.user) {
+        throw new HttpException(
+          'User must be logged in to create an order',
+          HttpStatus.UNAUTHORIZED
+        );
+      }
+      
+      // Get user ID from the token
+      const userId = req.user?._id;
+      const shortId = generateShortId('ORD',4);
+
+      // Create order with completed status
+      const orderWithUser = {
+        ...createOrderDto,
+        customer: userId,
+        shortId: shortId,
+        status: 'completed' // Set status to completed
+      };
+
+      // Create the order
+      const order = await this.ordersService.create(orderWithUser);
+
+      // Create payment with paid status
+      const createPaymentDto = {
+        customer: order.customer.toString(),
+        order: order._id.toString(),
+        amount: order.totalPrice,
+        paymentStatus: 'paid', // Set payment status to paid
+        paymentMethod: createOrderDto.paymentMethod,
+        paymentDate: new Date(Date.now()) // Add payment date
+      };
+
+      const payment = await this.paymentService.create({
+        ...createPaymentDto,
+      });
+
+      return {
+        success: true,
+        order: {
+          ...order.toObject(),
+          token: payment.token,
+          cancelTime: this.configService.get<string>('ORDER_CANCEL_TIME')
+        },
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message,
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   @Patch(':id')
   @ApiOperation({ summary: 'Cancel order with reason' })
   async update(
@@ -192,7 +253,6 @@ export class OrdersController {
   }
 
   @Patch('cancel/:id')
-  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Cancel order with reason' })
   async cancelOrderByUser(
     @Req() req: Request& { user?: any },
@@ -304,7 +364,6 @@ export class OrdersController {
 
 
   @Get('history')
-  @UseGuards(JwtAuthGuard)
   async findOrderHistoryByUser(
     @Req() req: Request & { user?: any },
     @Query('startDate') startDate?: string,
@@ -343,7 +402,8 @@ export class OrdersController {
         if (endDate) {
           // Set end date to end of day (23:59:59.999)
           const endDateTime = new Date(endDate);
-          endDateTime.setHours(23, 59, 59, 999);
+          // endDateTime.setHours(23, 59, 59, 999);
+          endDateTime.setDate(endDateTime.getDate() + 1);
           query.createdAt.$lte = endDateTime;
         }
       }
@@ -393,7 +453,8 @@ export class OrdersController {
         if (endDate) {
           // Set end date to end of day (23:59:59.999)
           const endDateTime = new Date(endDate);
-          endDateTime.setHours(23, 59, 59, 999);
+          // endDateTime.setHours(23, 59, 59, 999);
+          endDateTime.setDate(endDateTime.getDate() + 1);
           query.createdAt.$lte = endDateTime;
         }
       }
@@ -464,7 +525,6 @@ export class OrdersController {
   }
 
   @Get('orderDetail/:id')
-  @UseGuards(JwtAuthGuard)
   async orderDetailByUser(
     @Req() req: Request& { user?: any },
     @Param('id') id: string
@@ -558,7 +618,6 @@ export class OrdersController {
   }
 
 @Patch(':id/payment')
-@UseGuards(JwtAuthGuard)
 @ApiOperation({ summary: 'Process payment for an order' })
 async processPayment(
   @Req() req: Request & { user?: any },

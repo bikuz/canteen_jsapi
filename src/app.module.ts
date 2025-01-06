@@ -5,6 +5,8 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import * as yaml from 'js-yaml';
 import { readFileSync } from 'fs';
+import { DiscoveryModule } from '@nestjs/core';
+import { DiscoveryService } from '@nestjs/core/discovery';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -23,6 +25,7 @@ import { SharedModule } from './authjwt/shared.module';
 import { PassportModule } from '@nestjs/passport';
 import { DiscountModule } from './discount/discount.module';
 import { OrderTimeFrameModule } from './ordertimeframe/ordertimeframe.module';
+import { ControllerScannerModule } from './controller-scanner/controller-scanner.module';
 
 // Load YAML configuration
 const loadYamlConfig = () => {
@@ -68,10 +71,12 @@ const loadYamlConfig = () => {
     AnalyticsModule,
     DiscountModule,
     OrderTimeFrameModule,
+    DiscoveryModule,
+    ControllerScannerModule,
     
        
   ],
   controllers: [AppController, AuthController],
-  providers: [AppService, AuthService],
+  providers: [AppService, AuthService,DiscoveryService],
 })
 export class AppModule {}

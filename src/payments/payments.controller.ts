@@ -1,5 +1,6 @@
  
-import { Controller, Get, Post, Body, Param, Patch, Delete, HttpException, HttpStatus, NotFoundException, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Delete,
+   HttpException, HttpStatus, NotFoundException, Req, UseGuards } from '@nestjs/common';
 import { PaymentsService } from './payments.service';
 import { CreatePaymentDto, UpdatePaymentDto } from './dto';
 import { Model } from 'mongoose';
@@ -8,8 +9,11 @@ import { OrdersService } from '../orders/orders.service';
 
 import { Request } from 'express';
 import { ConfigService } from '@nestjs/config';
+import { JwtAuthGuard } from '../authjwt/jwt-auth.guard';
+import { DynamicRolesGuard } from '../helper/dynamic-auth.guard';
 
 @Controller('payment')
+@UseGuards(JwtAuthGuard, DynamicRolesGuard)
 export class PaymentsController {
   constructor(
     private readonly paymentsService: PaymentsService,

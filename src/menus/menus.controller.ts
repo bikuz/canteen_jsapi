@@ -1,7 +1,7 @@
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
-import { Controller, Get, Post, Body, Param, Put, Patch, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Patch, Delete, UseGuards } from '@nestjs/common';
 import { UploadedFile, UseInterceptors, Req, HttpException, NotFoundException, HttpStatus } from '@nestjs/common';
 
 import { MenusService } from './menus.service';
@@ -17,10 +17,13 @@ import { extname } from 'path';
 import * as fs from 'fs';
 import * as path from 'path';
 import { Request } from 'express';
+import { DynamicRolesGuard } from '../helper/dynamic-auth.guard';
+import { JwtAuthGuard } from '../authjwt/jwt-auth.guard';
 
 // FoodItem.find({ tags: { $in: ['vegan', 'gluten-free'] } });
 // This would allow you to find food items that are either vegan or gluten-free.
 @Controller('menus')
+@UseGuards(JwtAuthGuard, DynamicRolesGuard)
 export class MenusController {
   // private static readonly imagePath = 'assets/images/menus'; 
   private static days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];

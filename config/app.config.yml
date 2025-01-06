@@ -7,7 +7,14 @@ security:
     - ^/logout$/
     - ^/error
     - ^/delete-user
-    
+
+ignoreControllers:
+  - ControllerScannerController
+  - AuthController
+  - AppController
+  - AnalyticsController
+  - DiscountController
+  - OrderTimeFrameController
      
      
      

@@ -6,6 +6,7 @@ import { Category, CategorySchema } from './categories.model';
 // import { FoodItem, FoodItemSchema } from '../fooditems/fooditems.model';
 import { FoodItemsModule } from '../fooditems/fooditems.module';
 import { OrderTimeFrameModule } from '../ordertimeframe/ordertimeframe.module';
+import { UserModule } from '../users/users.module';
 
 @Module({
   imports:[MongooseModule.forFeature([
@@ -14,6 +15,7 @@ import { OrderTimeFrameModule } from '../ordertimeframe/ordertimeframe.module';
   ]),
   OrderTimeFrameModule, // Import the OrderTimeFrameModule
   FoodItemsModule,
+  UserModule
 ],
   providers: [CategoriesService],
   controllers: [CategoriesController],

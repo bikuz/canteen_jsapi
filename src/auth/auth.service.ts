@@ -12,7 +12,6 @@ import { RoleService } from '../role/role.service';
 import { ConfigService } from '@nestjs/config';
 
 import * as bcrypt from 'bcryptjs';
-
 import { CreateUserDto } from '../users/dto/create-user.dto';
 
 
@@ -60,7 +59,8 @@ export class AuthService {
       const createUserDto: CreateUserDto = {
         username: ldapUser.username,
         password: 'ldap_authenticated', // You can use a constant password or special indicator for LDAP users
-        role: customerRole._id as Types.ObjectId, // Assign a default role
+        // role: customerRole._id as Types.ObjectId, // Assign a default role
+        roles: [customerRole._id as string],
         profile: {
           firstName: ldapUser.firstName || '',
           lastName: ldapUser.lastName || '',

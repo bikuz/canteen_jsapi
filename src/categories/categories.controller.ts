@@ -1,7 +1,7 @@
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
-import { Controller, Get, Post, Body, Param, Put, Patch, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Put, Patch, Delete, UseGuards } from '@nestjs/common';
 import { UploadedFile, UseInterceptors, Req, HttpException,NotFoundException, HttpStatus } from '@nestjs/common';
 
 import { CategoriesService } from './categories.service';
@@ -19,8 +19,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
+import { JwtAuthGuard } from '../authjwt/jwt-auth.guard';
+import { DynamicRolesGuard } from '../helper/dynamic-auth.guard';
 
 @Controller('categories')
+@UseGuards(JwtAuthGuard, DynamicRolesGuard)
 export class CategoriesController {
     
     private static readonly imagePath = 'assets/images/categories'; 

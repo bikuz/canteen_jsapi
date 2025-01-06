@@ -20,12 +20,12 @@ export class RoleInitService implements OnModuleInit {
   }
 
   private async createDefaultRoles() {
-    const roles = ['admin', 'manager', 'cashier', 'customer'];
+    const roles = ['super-admin', 'canteen-admin', 'menu-manager', 'order-manager', 'payment-manager', 'cashier', 'customer'];
     for (const roleName of roles) {
       const roleExists = await this.roleModel.findOne({ name: roleName });
       if (!roleExists) {
         const permissions = new Map<string, Map<string, boolean>>();
-        if (roleName === 'admin') {
+        if (roleName === 'super-admin') {
           // Admin has all permissions
           permissions.set('*', new Map([['*', true]]));
         }
@@ -40,7 +40,7 @@ export class RoleInitService implements OnModuleInit {
 
   private async createAdminUser() {    
 
-    const adminRole = await this.roleModel.findOne({ name: 'admin' });
+    const adminRole = await this.roleModel.findOne({ name: 'super-admin' });
     if (adminRole) {
       const adminExists = await this.userModel.findOne({ username: 'admin' });
       if (!adminExists) {
@@ -49,10 +49,11 @@ export class RoleInitService implements OnModuleInit {
         const adminUser = new this.userModel({
           username: 'admin',
           password: hashedPassword,
-          role: adminRole._id,
+          // role: adminRole._id,
+          roles: [adminRole._id as string],
           profile: {
-            firstName: 'Admin',
-            lastName: 'User',
+            firstName: 'Super',
+            lastName: 'Admin',
             email: 'admin@admin.com',
             phoneNumber: '1234567890',
           },
