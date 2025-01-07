@@ -34,6 +34,206 @@ export class OrdersController {
     
   }
 
+  @Get('page/:page/limit/:limit')
+  async findByPage(
+    @Param('page') page: string,
+    @Param('limit') limit: string,
+    @Req() req: Request
+  ){
+    try {
+      const pageNumber = parseInt(page, 10);
+      const limitNumber = parseInt(limit, 10);
+      // Validate the parameters
+      if (isNaN(pageNumber) || isNaN(limitNumber) || pageNumber < 1 || limitNumber < 1) {
+        throw new HttpException('Page and limit must be positive integers.', HttpStatus.BAD_REQUEST);
+      }
+
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const {orders,total} = await this.ordersService.findByPage(pageNumber,limitNumber);
+      
+      orders.forEach(menu => {
+        if (menu.foodItems && Array.isArray(menu.foodItems)) {
+          menu.foodItems.forEach(foodItem => {
+            if (foodItem.image) {
+              // Prepend baseUrl to food item's image URL
+              foodItem.image = `${baseUrl}/${foodItem.image}`;
+            }
+          });
+        }
+      });
+
+      return {orders:orders,total};
+
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+          throw error;
+      }
+      throw new HttpException(
+        error.message,
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  
+  @Post('checkItems')
+  @ApiOperation({ summary: 'Check if food items are available' })
+  async checkItems(@Body() checkItemsDto: CheckItemsDto) {
+    try {
+      const { foodItems } = checkItemsDto;
+
+      if (!foodItems || !Array.isArray(foodItems)) {
+        throw new HttpException('Invalid or missing foodItems array.', HttpStatus.BAD_REQUEST);
+      }
+
+      const itemsWithStatus = await Promise.all(
+        foodItems.map(async (fd) => {
+          const foodItem = await this.fooditemService.findOne(fd);
+          if (!foodItem) {
+            return { foodItemId: fd, isOrderingAllowed: false, message: 'Food item not found.' };
+          }
+          const isOrderingAllowed = await this.fooditemService.isOrderingAllowed(fd);
+          return { ...foodItem, isOrderingAllowed };
+        }),
+      );
+
+      return { success: true, foodItems: itemsWithStatus };
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'An error occurred while checking food items.',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+
+
+  @Get('history')
+  async findOrderHistoryByUser(
+    @Req() req: Request & { user?: any },
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string
+  ) {
+    try {
+      if (!req.user) {
+        throw new HttpException(
+          'User must be logged in to create an order',
+          HttpStatus.UNAUTHORIZED
+        );
+      }
+      
+      const userId = req.user?._id;
+      
+      // Build query object
+      const query: any = { customer: userId };
+      
+      // If no dates provided, set default to last 30 days
+      if (!startDate && !endDate) {
+        const end = new Date();
+        const start = new Date();
+        start.setDate(start.getDate() - 30);
+        
+        query.createdAt = {
+          $gte: start,
+          $lte: end
+        };
+      } 
+      // If dates are provided, use them
+      else {
+        query.createdAt = {};
+        if (startDate) {
+          query.createdAt.$gte = new Date(startDate);
+        }
+        if (endDate) {
+          // Set end date to end of day (23:59:59.999)
+          const endDateTime = new Date(endDate);
+          // endDateTime.setHours(23, 59, 59, 999);
+          endDateTime.setDate(endDateTime.getDate() + 1);
+          query.createdAt.$lte = endDateTime;
+        }
+      }
+
+      const orders = await this.ordersService.findAll(query);
+
+      const ordersWithCancelStatus = await Promise.all(
+        orders.map(async (item) => {
+          const payment = await this.paymentService.filterOne({order: item._id.toString()});
+          return {
+            ...item,
+            token: payment.token,
+            paymentStatus: payment.paymentStatus,
+            isCancelAllowed: await this.ordersService.isCancelAllowed(item._id.toString())
+          };
+        })
+      );
+      return ordersWithCancelStatus;
+
+    } catch (error) {
+      throw new HttpException(
+        error.message,
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }    
+  }
+
+  @Post('createOrderPayment')
+  @ApiOperation({ summary: 'Create completed order with paid payment' })
+  async createOrderPayment(
+    @Req() req: Request& { user?: any },
+    @Body() createOrderDto: CreateOrderDto
+  ) {
+    try {
+      // Check if user is logged in
+      if (!req.user) {
+        throw new HttpException(
+          'User must be logged in to create an order',
+          HttpStatus.UNAUTHORIZED
+        );
+      }
+      
+      // Get user ID from the token
+      const userId = req.user?._id;
+      const shortId = generateShortId('ORD',4);
+
+      // Create order with completed status
+      const orderWithUser = {
+        ...createOrderDto,
+        customer: userId,
+        shortId: shortId,
+        status: 'completed' // Set status to completed
+      };
+
+      // Create the order
+      const order = await this.ordersService.create(orderWithUser);
+
+      // Create payment with paid status
+      const createPaymentDto = {
+        customer: order.customer.toString(),
+        order: order._id.toString(),
+        amount: order.totalPrice,
+        paymentStatus: 'paid', // Set payment status to paid
+        paymentMethod: createOrderDto.paymentMethod,
+        paymentDate: new Date(Date.now()) // Add payment date
+      };
+
+      const payment = await this.paymentService.create({
+        ...createPaymentDto,
+      });
+
+      return {
+        success: true,
+        order: {
+          ...order.toObject(),
+          token: payment.token,
+          cancelTime: this.configService.get<string>('ORDER_CANCEL_TIME')
+        },
+      };
+    } catch (error) {
+      throw new HttpException(
+        error.message,
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
   
   @Post()
   @ApiOperation({ summary: 'Create Orders if fooditems are available' })
@@ -132,65 +332,6 @@ export class OrdersController {
     }
   }
 
-  @Post('createOrderPayment')
-  @ApiOperation({ summary: 'Create completed order with paid payment' })
-  async createOrderPayment(
-    @Req() req: Request& { user?: any },
-    @Body() createOrderDto: CreateOrderDto
-  ) {
-    try {
-      // Check if user is logged in
-      if (!req.user) {
-        throw new HttpException(
-          'User must be logged in to create an order',
-          HttpStatus.UNAUTHORIZED
-        );
-      }
-      
-      // Get user ID from the token
-      const userId = req.user?._id;
-      const shortId = generateShortId('ORD',4);
-
-      // Create order with completed status
-      const orderWithUser = {
-        ...createOrderDto,
-        customer: userId,
-        shortId: shortId,
-        status: 'completed' // Set status to completed
-      };
-
-      // Create the order
-      const order = await this.ordersService.create(orderWithUser);
-
-      // Create payment with paid status
-      const createPaymentDto = {
-        customer: order.customer.toString(),
-        order: order._id.toString(),
-        amount: order.totalPrice,
-        paymentStatus: 'paid', // Set payment status to paid
-        paymentMethod: createOrderDto.paymentMethod,
-        paymentDate: new Date(Date.now()) // Add payment date
-      };
-
-      const payment = await this.paymentService.create({
-        ...createPaymentDto,
-      });
-
-      return {
-        success: true,
-        order: {
-          ...order.toObject(),
-          token: payment.token,
-          cancelTime: this.configService.get<string>('ORDER_CANCEL_TIME')
-        },
-      };
-    } catch (error) {
-      throw new HttpException(
-        error.message,
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Cancel order with reason' })
@@ -330,107 +471,25 @@ export class OrdersController {
     }
   }
 
-
-  @Post('checkItems')
-  @ApiOperation({ summary: 'Check if food items are available' })
-  async checkItems(@Body() checkItemsDto: CheckItemsDto) {
-    try {
-      const { foodItems } = checkItemsDto;
-
-      if (!foodItems || !Array.isArray(foodItems)) {
-        throw new HttpException('Invalid or missing foodItems array.', HttpStatus.BAD_REQUEST);
-      }
-
-      const itemsWithStatus = await Promise.all(
-        foodItems.map(async (fd) => {
-          const foodItem = await this.fooditemService.findOne(fd);
-          if (!foodItem) {
-            return { foodItemId: fd, isOrderingAllowed: false, message: 'Food item not found.' };
-          }
-          const isOrderingAllowed = await this.fooditemService.isOrderingAllowed(fd);
-          return { ...foodItem, isOrderingAllowed };
-        }),
-      );
-
-      return { success: true, foodItems: itemsWithStatus };
-    } catch (error) {
-      throw new HttpException(
-        error.message || 'An error occurred while checking food items.',
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
-      );
-    }
-  }
-
-
-
-  @Get('history')
-  async findOrderHistoryByUser(
-    @Req() req: Request & { user?: any },
+  @Get('searchOrderPayment')
+  @ApiOperation({ summary: 'Search orders for payment processing' })
+  async searchOrderForPayment(
     @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string
+    @Query('endDate') endDate?: string,
+    @Query('paymentStatus') paymentStatus?: string,
+    @Query('token') token?: string,
+    @Query('shortId') shortId?: string,
+    @Query('orderStatus') orderStatus?: string
   ) {
-    try {
-      if (!req.user) {
-        throw new HttpException(
-          'User must be logged in to create an order',
-          HttpStatus.UNAUTHORIZED
-        );
-      }
-      
-      const userId = req.user?._id;
-      
-      // Build query object
-      const query: any = { customer: userId };
-      
-      // If no dates provided, set default to last 30 days
-      if (!startDate && !endDate) {
-        const end = new Date();
-        const start = new Date();
-        start.setDate(start.getDate() - 30);
-        
-        query.createdAt = {
-          $gte: start,
-          $lte: end
-        };
-      } 
-      // If dates are provided, use them
-      else {
-        query.createdAt = {};
-        if (startDate) {
-          query.createdAt.$gte = new Date(startDate);
-        }
-        if (endDate) {
-          // Set end date to end of day (23:59:59.999)
-          const endDateTime = new Date(endDate);
-          // endDateTime.setHours(23, 59, 59, 999);
-          endDateTime.setDate(endDateTime.getDate() + 1);
-          query.createdAt.$lte = endDateTime;
-        }
-      }
-
-      const orders = await this.ordersService.findAll(query);
-
-      const ordersWithCancelStatus = await Promise.all(
-        orders.map(async (item) => {
-          const payment = await this.paymentService.filterOne({order: item._id.toString()});
-          return {
-            ...item,
-            token: payment.token,
-            paymentStatus: payment.paymentStatus,
-            isCancelAllowed: await this.ordersService.isCancelAllowed(item._id.toString())
-          };
-        })
-      );
-      return ordersWithCancelStatus;
-
-    } catch (error) {
-      throw new HttpException(
-        error.message,
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR
-      );
-    }    
+    return this.findAll(
+      startDate,
+      endDate,
+      paymentStatus,
+      token,
+      shortId,
+      orderStatus
+    );
   }
-
 
   @Get()
   async findAll(
@@ -510,6 +569,8 @@ export class OrdersController {
     }
   }
 
+  
+
   @Get(':id')
   async findOne(@Param('id') id: string) {
     try{
@@ -563,46 +624,7 @@ export class OrdersController {
     
   }
 
-  @Get('page/:page/limit/:limit')
-  async findByPage(
-    @Param('page') page: string,
-    @Param('limit') limit: string,
-    @Req() req: Request
-  ){
-    try {
-      const pageNumber = parseInt(page, 10);
-      const limitNumber = parseInt(limit, 10);
-      // Validate the parameters
-      if (isNaN(pageNumber) || isNaN(limitNumber) || pageNumber < 1 || limitNumber < 1) {
-        throw new HttpException('Page and limit must be positive integers.', HttpStatus.BAD_REQUEST);
-      }
-
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      const {orders,total} = await this.ordersService.findByPage(pageNumber,limitNumber);
-      
-      orders.forEach(menu => {
-        if (menu.foodItems && Array.isArray(menu.foodItems)) {
-          menu.foodItems.forEach(foodItem => {
-            if (foodItem.image) {
-              // Prepend baseUrl to food item's image URL
-              foodItem.image = `${baseUrl}/${foodItem.image}`;
-            }
-          });
-        }
-      });
-
-      return {orders:orders,total};
-
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-          throw error;
-      }
-      throw new HttpException(
-        error.message,
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-  }
-
+  
   @Delete(':id')
   async remove(@Param('id') id: string) {
     try{
@@ -648,5 +670,7 @@ async processPayment(
     );
   }
 }
+
+  
 }
  

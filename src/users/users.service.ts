@@ -104,12 +104,21 @@ export class UserService {
     .exec();
   }
 
-  async findUserRole(userId: string): Promise<Role[]> {
-    const user = await this.userModel.findById(userId).populate('roles');
+  async findUserRole(userId: string) {
+    const user = await this.userModel
+      .findById(userId)
+      .populate('roles', 'name')
+      .select('roles')
+      .exec();
+
     if (!user) {
-      throw new NotFoundException(`User with ID ${userId} not found`);
+      throw new HttpException(
+        'User not found',
+        HttpStatus.NOT_FOUND
+      );
     }
-    return user.roles || [];
+
+    return user.roles.map(role => role.name);
   }
   
   async findAllExceptSuperAdmin(): Promise<FlattenMaps<User>[]> {
@@ -148,11 +157,14 @@ export class UserService {
       
       // Iterate through the outer map (controllers)
       role.permissions.forEach((actionMap, controller) => {
+        // Remove 'Controller' suffix if present
+        const cleanController = controller.replace(/Controller$/, '');
+        
         // Iterate through the inner map (actions)
         actionMap.forEach((isAllowed, action) => {
           // Only include permissions that are set to true
           if (isAllowed) {
-            permissions.push(`${controller}.${action}`);
+            permissions.push(`${cleanController}.${action}`);
           }
         });
       });

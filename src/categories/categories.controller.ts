@@ -35,6 +35,95 @@ export class CategoriesController {
       @InjectModel(OrderTimeFrame.name) private orderTimeFrameModel: Model<OrderTimeFrame>,
     ) {}
 
+    @Get('page/:page/limit/:limit')
+    async findByPage(
+      @Param('page') page: string,
+      @Param('limit') limit: string,
+      @Req() req: Request
+    ){
+      try {
+        const pageNumber = parseInt(page, 10);
+        const limitNumber = parseInt(limit, 10);
+        // Validate the parameters
+        if (isNaN(pageNumber) || isNaN(limitNumber) || pageNumber < 1 || limitNumber < 1) {
+          throw new HttpException('Page and limit must be positive integers.', HttpStatus.BAD_REQUEST);
+        }
+
+        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const {categories,total} = await this.categoryService.findByPage(pageNumber,limitNumber);
+        
+        const categoriesWithOrdering = await Promise.all(
+          categories.map(async (_item) => {
+            const ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('category', _item._id.toString());
+            const isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
+            return {
+              ..._item, // Convert category to plain object
+              image: _item.image ? `${baseUrl}/${_item.image}` : null,
+              orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
+              orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
+              isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
+              isOrderingAllowed, // Add the isOrderingAllowed field
+              
+            };
+          }),
+        );
+        
+        return {categories:categoriesWithOrdering,total};
+
+      } catch (error) {
+        if (error instanceof NotFoundException) {
+            throw error;
+        }
+        throw new HttpException(
+          error.message,
+          error.status || HttpStatus.INTERNAL_SERVER_ERROR);
+      }
+    }
+
+    @Get(':id/fooditems')
+    async fooditemsByCategory(
+      @Param('id') id: string, 
+      @Req() req: Request
+    ){
+        // here id belongs to category id
+        try{
+            const baseUrl = `${req.protocol}://${req.get('host')}`;
+            const fooditems = await this.foodItemService.findByFields({
+                'category':id
+            });
+
+            const categoriesWithOrdering = await Promise.all(
+              fooditems.map(async (_item) => {
+                
+                // const ordertimeframe_cat= await this.orderTimeFrameService.findOrderTimeframe('category', _item._id.toString());
+                const isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', id);
+                const ordertimeframe_food= await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
+                const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
+                const isOrderingAllowed = isOrderingAllowed_cat && isOrderingAllowed_food;
+
+                return {
+                  ..._item, // Convert category to plain object
+                  image: _item.image ? `${baseUrl}/${_item.image}` : null,
+                  orderingStartTime:ordertimeframe_food?ordertimeframe_food.orderingStartTime:0,
+                  orderingEndTime:ordertimeframe_food?ordertimeframe_food.orderingEndTime:0,
+                  isOrderTimeFrameActive:ordertimeframe_food?ordertimeframe_food.isActive:false,
+                  isOrderingAllowed, // Add the isOrderingAllowed field
+                };
+              }),
+            );
+
+            return categoriesWithOrdering;
+
+        }catch(error){
+            if (error instanceof NotFoundException) {
+                throw error;
+            }
+            throw new HttpException(
+                error.message,
+                error.status || HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
     @Post()
     @UseInterceptors(FileInterceptor('image',{
         storage:diskStorage({
@@ -302,92 +391,6 @@ export class CategoriesController {
               error.message,
               error.status || HttpStatus.INTERNAL_SERVER_ERROR);
           }
-    }
-
-    @Get('page/:page/limit/:limit')
-    async findByPage(
-      @Param('page') page: string,
-      @Param('limit') limit: string,
-      @Req() req: Request
-    ){
-      try {
-        const pageNumber = parseInt(page, 10);
-        const limitNumber = parseInt(limit, 10);
-        // Validate the parameters
-        if (isNaN(pageNumber) || isNaN(limitNumber) || pageNumber < 1 || limitNumber < 1) {
-          throw new HttpException('Page and limit must be positive integers.', HttpStatus.BAD_REQUEST);
-        }
-
-        const baseUrl = `${req.protocol}://${req.get('host')}`;
-        const {categories,total} = await this.categoryService.findByPage(pageNumber,limitNumber);
-        
-        const categoriesWithOrdering = await Promise.all(
-          categories.map(async (_item) => {
-            const ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('category', _item._id.toString());
-            const isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
-            return {
-              ..._item, // Convert category to plain object
-              image: _item.image ? `${baseUrl}/${_item.image}` : null,
-              orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
-              orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
-              isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
-              isOrderingAllowed, // Add the isOrderingAllowed field
-              
-            };
-          }),
-        );
-        
-        return {categories:categoriesWithOrdering,total};
-
-      } catch (error) {
-        if (error instanceof NotFoundException) {
-            throw error;
-        }
-        throw new HttpException(
-          error.message,
-          error.status || HttpStatus.INTERNAL_SERVER_ERROR);
-      }
-    }
-
-    @Get('/:id/fooditems')
-    async fooditemsByCategory(@Param('id') id: string, @Req() req: Request){
-        // here id belongs to category id
-        try{
-            const baseUrl = `${req.protocol}://${req.get('host')}`;
-            const fooditems = await this.foodItemService.findByFields({
-                'category':id
-            });
-
-            const categoriesWithOrdering = await Promise.all(
-              fooditems.map(async (_item) => {
-                
-                // const ordertimeframe_cat= await this.orderTimeFrameService.findOrderTimeframe('category', _item._id.toString());
-                const isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', id);
-                const ordertimeframe_food= await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
-                const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
-                const isOrderingAllowed = isOrderingAllowed_cat && isOrderingAllowed_food;
-
-                return {
-                  ..._item, // Convert category to plain object
-                  image: _item.image ? `${baseUrl}/${_item.image}` : null,
-                  orderingStartTime:ordertimeframe_food?ordertimeframe_food.orderingStartTime:0,
-                  orderingEndTime:ordertimeframe_food?ordertimeframe_food.orderingEndTime:0,
-                  isOrderTimeFrameActive:ordertimeframe_food?ordertimeframe_food.isActive:false,
-                  isOrderingAllowed, // Add the isOrderingAllowed field
-                };
-              }),
-            );
-
-            return categoriesWithOrdering;
-
-        }catch(error){
-            if (error instanceof NotFoundException) {
-                throw error;
-            }
-            throw new HttpException(
-                error.message,
-                error.status || HttpStatus.INTERNAL_SERVER_ERROR);
-        }
     }
 
     @Delete(':id')

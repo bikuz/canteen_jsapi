@@ -19,6 +19,7 @@ import * as path from 'path';
 import { Request } from 'express';
 import { DynamicRolesGuard } from '../helper/dynamic-auth.guard';
 import { JwtAuthGuard } from '../authjwt/jwt-auth.guard';
+import { Roles } from '../helper/roles.decorator';
 
 // FoodItem.find({ tags: { $in: ['vegan', 'gluten-free'] } });
 // This would allow you to find food items that are either vegan or gluten-free.
@@ -35,6 +36,258 @@ export class MenusController {
     private readonly categoryService:CategoriesService,
     @InjectModel(OrderTimeFrame.name) private orderTimeFrameModel: Model<OrderTimeFrame>,
   ) {}
+
+  
+  @Get('day/:day/fooditems')
+  @Roles('*')
+  async fooditemsByDay(
+      @Param('day') day: string,
+      @Req() req: Request
+  ) {
+      try {
+          const baseUrl = `${req.protocol}://${req.get('host')}`;
+          const menus = await this.menusService.findByFields({
+              repeatDay: { $in: [day] },
+          });
+
+          if (menus.length === 0) {
+              return [];
+          }
+
+          const foodItems = menus.reduce((acc, menu) => {
+              if (menu.foodItems && Array.isArray(menu.foodItems)) {
+                  acc.push(...menu.foodItems);
+              }
+              return acc;
+          }, []);
+
+          const uniqueFoodItems = Array.from(
+              new Map(foodItems.map(item => [item._id, item])).values()
+          );
+
+          const fooditemWithOrdering = await Promise.all(
+              uniqueFoodItems.map(async (_item) => {
+                  const isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', _item.category.toString());
+                  const ordertimeframe_food = await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
+                  const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
+                  const isOrderingAllowed = isOrderingAllowed_cat && isOrderingAllowed_food;
+
+                  // Fetch category details
+                  const category = await this.categoryService.findOne(_item.category.toString());
+
+                  return {
+                      ..._item,
+                      image: _item.image ? `${baseUrl}/${_item.image}` : null,
+                      orderingStartTime: ordertimeframe_food ? ordertimeframe_food.orderingStartTime : 0,
+                      orderingEndTime: ordertimeframe_food ? ordertimeframe_food.orderingEndTime : 0,
+                      isOrderTimeFrameActive: ordertimeframe_food ? ordertimeframe_food.isActive : false,
+                      isOrderingAllowed,
+                      category,  // Include category details
+                  };
+              }),
+          );
+          return fooditemWithOrdering;
+
+      } catch (error) {
+          return [];
+      }
+  }
+
+  @Get('today/fooditems')
+  @Roles('*')
+  async fooditemsToday(
+      @Req() req: Request
+  ) {
+      try {
+          
+          let todayIndex = new Date().getDay();
+          let today = MenusController.days[todayIndex];
+
+          const baseUrl = `${req.protocol}://${req.get('host')}`;
+          // Use the findByFields service to find menus where repeatDay contains the provided day
+          const menus = await this.menusService.findByFields({
+              repeatDay: { $in: [today] },  // Check if the day exists in repeatDay array
+          });
+
+          if (menus.length === 0) {
+              // throw new NotFoundException(`No menus found for the day "${day}"`);
+              return [];
+          }
+
+          // Combine foodItems from all matching menus into a single array
+          const foodItems = menus.reduce((acc, menu) => {
+              if (menu.foodItems && Array.isArray(menu.foodItems)) {
+                  acc.push(...menu.foodItems);  // Add foodItems to the accumulator
+              }
+              return acc;
+          }, []);  // Start with an empty array
+
+          // Ensure unique food items by their _id
+          const uniqueFoodItems = Array.from(
+              new Map(foodItems.map(item => [item._id, item])).values()
+          );
+          
+          // Prepend baseUrl to each foodItem's image URL if it exists
+          // uniqueFoodItems.forEach(foodItem => {
+          //     if (foodItem.image) {
+          //     foodItem.image = `${baseUrl}/${foodItem.image}`;
+          //     }
+          // });
+
+          const fooditemWithOrdering = await Promise.all(
+              uniqueFoodItems.map(async (_item) => {
+              //   let ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('fooditem', _item._id.toString());
+              //   let isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
+              //   if(isOrderingAllowed){
+              //       //check if it is disabled through category
+              //       ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('category', _item.category.toString());
+              //       isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
+              //   }
+              const isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', _item.category.toString());
+              const ordertimeframe_food= await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
+              const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
+              const isOrderingAllowed = isOrderingAllowed_cat && isOrderingAllowed_food;
+
+              const category = await this.categoryService.findOne(_item.category.toString());
+
+                return {
+                    ..._item,  
+                    image: _item.image ? `${baseUrl}/${_item.image}` : null,
+                    orderingStartTime:ordertimeframe_food?ordertimeframe_food.orderingStartTime:0,
+                    orderingEndTime:ordertimeframe_food?ordertimeframe_food.orderingEndTime:0,
+                    isOrderTimeFrameActive:ordertimeframe_food?ordertimeframe_food.isActive:false,
+                    isOrderingAllowed,  
+                    category
+                };
+              }),
+          );
+          return fooditemWithOrdering;
+      } catch (error) {
+          return [];
+          
+      }
+  }
+
+  @Get('today/fooditems/category/:categoryId')
+  @Roles('*')
+  async fooditemsTodayByCategory(
+      @Req() req: Request,
+      @Param('categoryId') categoryId: string // Extract categoryId from the route parameter
+  ) {
+      try {
+          const todayIndex = new Date().getDay();
+          const today = MenusController.days[todayIndex];
+
+          const baseUrl = `${req.protocol}://${req.get('host')}`;
+
+          const menus = await this.menusService.findByFields({
+              repeatDay: { $in: [today] },  // Check if the day exists in repeatDay array
+          });
+
+          if (menus.length === 0) {
+              return [];
+          }
+
+          // Combine foodItems from all matching menus into a single array
+          const foodItems = menus.reduce((acc, menu) => {
+              if (menu.foodItems && Array.isArray(menu.foodItems)) {
+                  acc.push(...menu.foodItems);  // Add foodItems to the accumulator
+              }
+              return acc;
+          }, []);  // Start with an empty array
+
+          // Ensure unique food items by their _id and filter by category and availability
+          const uniqueFoodItems = Array.from(
+              new Map(foodItems.map(item => [item._id, item])).values()
+          ).filter(item => item.category.toString() === categoryId && item.isAvailable);
+
+          const fooditemWithOrdering = await Promise.all(
+              uniqueFoodItems.map(async (_item) => {
+                  const isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', _item.category.toString());
+                  const ordertimeframe_food = await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
+                  const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
+                  const isOrderingAllowed = isOrderingAllowed_cat && isOrderingAllowed_food;
+
+                  if (isOrderingAllowed) {
+                      return {
+                          ..._item,
+                          image: _item.image ? `${baseUrl}/${_item.image}` : null,
+                          orderingStartTime: ordertimeframe_food ? ordertimeframe_food.orderingStartTime : 0,
+                          orderingEndTime: ordertimeframe_food ? ordertimeframe_food.orderingEndTime : 0,
+                          isOrderTimeFrameActive: ordertimeframe_food ? ordertimeframe_food.isActive : false,
+                          isOrderingAllowed,
+                      };
+                  }
+              })
+          );
+
+          // Filter out undefined values (items that are not allowed for ordering)
+          return fooditemWithOrdering.filter(item => item !== undefined);
+
+      } catch (error) {
+          console.error('Error fetching food items by category:', error);
+          return [];
+      }
+  }
+
+
+  // @Post('/:id/add-food-item/:fooditemid')
+  // async addFooditemToMenu(
+  //     @Param('id') menuId: string,
+  //     @Param('fooditemid') foodItemId:string
+  // ){
+  //     try {
+  //         return await this.menusService.addFoodItemToMenu(menuId, foodItemId);
+  //     } catch (error) {
+  //         throw new HttpException(
+  //         error.message || 'Error adding food item to menu',
+  //         error.status || HttpStatus.BAD_REQUEST,
+  //         );
+  //     }
+  // }
+
+
+@Get('page/:page/limit/:limit')
+async findByPage(
+  @Param('page') page: string,
+  @Param('limit') limit: string,
+  @Req() req: Request
+){
+  try {
+    const pageNumber = parseInt(page, 10);
+    const limitNumber = parseInt(limit, 10);
+    // Validate the parameters
+    if (isNaN(pageNumber) || isNaN(limitNumber) || pageNumber < 1 || limitNumber < 1) {
+      throw new HttpException('Page and limit must be positive integers.', HttpStatus.BAD_REQUEST);
+    }
+
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const {menus,total} = await this.menusService.findByPage(pageNumber,limitNumber);
+    
+    menus.forEach(menu => {
+      if (menu.foodItems && Array.isArray(menu.foodItems)) {
+        menu.foodItems.forEach(foodItem => {
+          if (foodItem.image) {
+            // Prepend baseUrl to food item's image URL
+            foodItem.image = `${baseUrl}/${foodItem.image}`;
+          }
+        });
+      }
+    });
+
+
+
+    return {menus:menus,total};
+
+  } catch (error) {
+    if (error instanceof NotFoundException) {
+        throw error;
+    }
+    throw new HttpException(
+      error.message,
+      error.status || HttpStatus.INTERNAL_SERVER_ERROR);
+  }
+}
 
   @Post()
 async create(
@@ -184,254 +437,6 @@ async create(
 //               error.status || HttpStatus.INTERNAL_SERVER_ERROR);
 //       }
 //   }
-
-    @Get('day/:day/fooditems')
-    async fooditemsByDay(
-        @Param('day') day: string,
-        @Req() req: Request
-    ) {
-        try {
-            const baseUrl = `${req.protocol}://${req.get('host')}`;
-            const menus = await this.menusService.findByFields({
-                repeatDay: { $in: [day] },
-            });
-
-            if (menus.length === 0) {
-                return [];
-            }
-
-            const foodItems = menus.reduce((acc, menu) => {
-                if (menu.foodItems && Array.isArray(menu.foodItems)) {
-                    acc.push(...menu.foodItems);
-                }
-                return acc;
-            }, []);
-
-            const uniqueFoodItems = Array.from(
-                new Map(foodItems.map(item => [item._id, item])).values()
-            );
-
-            const fooditemWithOrdering = await Promise.all(
-                uniqueFoodItems.map(async (_item) => {
-                    const isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', _item.category.toString());
-                    const ordertimeframe_food = await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
-                    const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
-                    const isOrderingAllowed = isOrderingAllowed_cat && isOrderingAllowed_food;
-
-                    // Fetch category details
-                    const category = await this.categoryService.findOne(_item.category.toString());
-
-                    return {
-                        ..._item,
-                        image: _item.image ? `${baseUrl}/${_item.image}` : null,
-                        orderingStartTime: ordertimeframe_food ? ordertimeframe_food.orderingStartTime : 0,
-                        orderingEndTime: ordertimeframe_food ? ordertimeframe_food.orderingEndTime : 0,
-                        isOrderTimeFrameActive: ordertimeframe_food ? ordertimeframe_food.isActive : false,
-                        isOrderingAllowed,
-                        category,  // Include category details
-                    };
-                }),
-            );
-            return fooditemWithOrdering;
-
-        } catch (error) {
-            return [];
-        }
-    }
-
-    @Get('today/fooditems')
-    async fooditemsToday(
-        @Req() req: Request
-    ) {
-        try {
-            
-            let todayIndex = new Date().getDay();
-            let today = MenusController.days[todayIndex];
-
-            const baseUrl = `${req.protocol}://${req.get('host')}`;
-            // Use the findByFields service to find menus where repeatDay contains the provided day
-            const menus = await this.menusService.findByFields({
-                repeatDay: { $in: [today] },  // Check if the day exists in repeatDay array
-            });
-
-            if (menus.length === 0) {
-                // throw new NotFoundException(`No menus found for the day "${day}"`);
-                return [];
-            }
-
-            // Combine foodItems from all matching menus into a single array
-            const foodItems = menus.reduce((acc, menu) => {
-                if (menu.foodItems && Array.isArray(menu.foodItems)) {
-                    acc.push(...menu.foodItems);  // Add foodItems to the accumulator
-                }
-                return acc;
-            }, []);  // Start with an empty array
-
-            // Ensure unique food items by their _id
-            const uniqueFoodItems = Array.from(
-                new Map(foodItems.map(item => [item._id, item])).values()
-            );
-            
-            // Prepend baseUrl to each foodItem's image URL if it exists
-            // uniqueFoodItems.forEach(foodItem => {
-            //     if (foodItem.image) {
-            //     foodItem.image = `${baseUrl}/${foodItem.image}`;
-            //     }
-            // });
-
-            const fooditemWithOrdering = await Promise.all(
-                uniqueFoodItems.map(async (_item) => {
-                //   let ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('fooditem', _item._id.toString());
-                //   let isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
-                //   if(isOrderingAllowed){
-                //       //check if it is disabled through category
-                //       ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('category', _item.category.toString());
-                //       isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
-                //   }
-                const isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', _item.category.toString());
-                const ordertimeframe_food= await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
-                const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
-                const isOrderingAllowed = isOrderingAllowed_cat && isOrderingAllowed_food;
-
-                const category = await this.categoryService.findOne(_item.category.toString());
-
-                  return {
-                      ..._item,  
-                      image: _item.image ? `${baseUrl}/${_item.image}` : null,
-                      orderingStartTime:ordertimeframe_food?ordertimeframe_food.orderingStartTime:0,
-                      orderingEndTime:ordertimeframe_food?ordertimeframe_food.orderingEndTime:0,
-                      isOrderTimeFrameActive:ordertimeframe_food?ordertimeframe_food.isActive:false,
-                      isOrderingAllowed,  
-                      category
-                  };
-                }),
-            );
-            return fooditemWithOrdering;
-        } catch (error) {
-            return [];
-            
-        }
-    }
-
-    @Get('today/fooditems/category/:categoryId')
-    async fooditemsTodayByCategory(
-        @Req() req: Request,
-        @Param('categoryId') categoryId: string // Extract categoryId from the route parameter
-    ) {
-        try {
-            const todayIndex = new Date().getDay();
-            const today = MenusController.days[todayIndex];
-
-            const baseUrl = `${req.protocol}://${req.get('host')}`;
-
-            const menus = await this.menusService.findByFields({
-                repeatDay: { $in: [today] },  // Check if the day exists in repeatDay array
-            });
-
-            if (menus.length === 0) {
-                return [];
-            }
-
-            // Combine foodItems from all matching menus into a single array
-            const foodItems = menus.reduce((acc, menu) => {
-                if (menu.foodItems && Array.isArray(menu.foodItems)) {
-                    acc.push(...menu.foodItems);  // Add foodItems to the accumulator
-                }
-                return acc;
-            }, []);  // Start with an empty array
-
-            // Ensure unique food items by their _id and filter by category and availability
-            const uniqueFoodItems = Array.from(
-                new Map(foodItems.map(item => [item._id, item])).values()
-            ).filter(item => item.category.toString() === categoryId && item.isAvailable);
-
-            const fooditemWithOrdering = await Promise.all(
-                uniqueFoodItems.map(async (_item) => {
-                    const isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', _item.category.toString());
-                    const ordertimeframe_food = await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
-                    const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
-                    const isOrderingAllowed = isOrderingAllowed_cat && isOrderingAllowed_food;
-
-                    if (isOrderingAllowed) {
-                        return {
-                            ..._item,
-                            image: _item.image ? `${baseUrl}/${_item.image}` : null,
-                            orderingStartTime: ordertimeframe_food ? ordertimeframe_food.orderingStartTime : 0,
-                            orderingEndTime: ordertimeframe_food ? ordertimeframe_food.orderingEndTime : 0,
-                            isOrderTimeFrameActive: ordertimeframe_food ? ordertimeframe_food.isActive : false,
-                            isOrderingAllowed,
-                        };
-                    }
-                })
-            );
-
-            // Filter out undefined values (items that are not allowed for ordering)
-            return fooditemWithOrdering.filter(item => item !== undefined);
-
-        } catch (error) {
-            console.error('Error fetching food items by category:', error);
-            return [];
-        }
-    }
-
-
-    // @Post('/:id/add-food-item/:fooditemid')
-    // async addFooditemToMenu(
-    //     @Param('id') menuId: string,
-    //     @Param('fooditemid') foodItemId:string
-    // ){
-    //     try {
-    //         return await this.menusService.addFoodItemToMenu(menuId, foodItemId);
-    //     } catch (error) {
-    //         throw new HttpException(
-    //         error.message || 'Error adding food item to menu',
-    //         error.status || HttpStatus.BAD_REQUEST,
-    //         );
-    //     }
-    // }
-
-
-  @Get('page/:page/limit/:limit')
-  async findByPage(
-    @Param('page') page: string,
-    @Param('limit') limit: string,
-    @Req() req: Request
-  ){
-    try {
-      const pageNumber = parseInt(page, 10);
-      const limitNumber = parseInt(limit, 10);
-      // Validate the parameters
-      if (isNaN(pageNumber) || isNaN(limitNumber) || pageNumber < 1 || limitNumber < 1) {
-        throw new HttpException('Page and limit must be positive integers.', HttpStatus.BAD_REQUEST);
-      }
-
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
-      const {menus,total} = await this.menusService.findByPage(pageNumber,limitNumber);
-      
-      menus.forEach(menu => {
-        if (menu.foodItems && Array.isArray(menu.foodItems)) {
-          menu.foodItems.forEach(foodItem => {
-            if (foodItem.image) {
-              // Prepend baseUrl to food item's image URL
-              foodItem.image = `${baseUrl}/${foodItem.image}`;
-            }
-          });
-        }
-      });
-
-  
-
-      return {menus:menus,total};
-
-    } catch (error) {
-      if (error instanceof NotFoundException) {
-          throw error;
-      }
-      throw new HttpException(
-        error.message,
-        error.status || HttpStatus.INTERNAL_SERVER_ERROR);
-    }
-  }
 
   @Delete(':id')
   async remove(@Param('id') id: string) {

@@ -13,39 +13,6 @@ import { Roles } from '../helper/roles.decorator';
 export class UserController {
   constructor(private readonly userService: UserService) {}
 
-  @Post()
-  async create(@Body() createUserDto: CreateUserDto) {
-    return this.userService.create(createUserDto);
-  }
-
-  @Get()
-  async findAll(
-    @Req() req: Request & { user?: any },
-  ) {
-    if (!req.user) {
-      throw new HttpException(
-        'User must be logged in to create an order',
-        HttpStatus.UNAUTHORIZED
-      );
-    }
-    
-    // Get user ID from the token
-    const userId = req.user?._id;
-    const roles = await this.userService.findUserRole(userId);
-
-    // Check if user has super-admin role
-    const isSuperAdmin = roles.some(role => role.name === 'super-admin');
-    
-    if (isSuperAdmin) {
-      return await this.userService.findAll();
-    }
-     
-    
-    const users = await this.userService.findAllExceptSuperAdmin();
-    return users;
-    
-  }
-
   @Get('permissions')
   @Roles('*')
   async getUserPermissions(
@@ -74,6 +41,54 @@ export class UserController {
     }
     const userId = req.user?._id;
     return await this.userService.findProfile(userId.toString());
+  }
+
+  @Get('roles')
+  @Roles('*')
+  async getUserRoles(
+    @Req() req: Request & { user?: any },
+  ) {
+    if (!req.user) {
+      throw new HttpException(
+        'User must be logged in to get roles',
+        HttpStatus.UNAUTHORIZED
+      );
+    }
+    const userId = req.user?._id;
+    return await this.userService.findUserRole(userId.toString());
+  }
+
+  @Post()
+  async create(@Body() createUserDto: CreateUserDto) {
+    return this.userService.create(createUserDto);
+  }
+
+  @Get()
+  async findAll(
+    @Req() req: Request & { user?: any },
+  ) {
+    if (!req.user) {
+      throw new HttpException(
+        'User must be logged in to create an order',
+        HttpStatus.UNAUTHORIZED
+      );
+    }
+    
+    // Get user ID from the token
+    const userId = req.user?._id;
+    const roles = await this.userService.findUserRole(userId);
+
+    // Check if user has super-admin role
+    const isSuperAdmin = roles.some(role => role === 'super-admin');
+    
+    if (isSuperAdmin) {
+      return await this.userService.findAll();
+    }
+     
+    
+    const users = await this.userService.findAllExceptSuperAdmin();
+    return users;
+    
   }
 
   @Get(':id')

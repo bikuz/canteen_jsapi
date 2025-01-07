@@ -34,10 +34,10 @@ export class RoleController {
       });
   }
 
-  @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return this.rolesService.findOne(id);
-  }
+  // @Get(':id')
+  // async findOne(@Param('id') id: string) {
+  //   return this.rolesService.findOne(id);
+  // }
 
   @Patch(':id')
   async update(@Param('id') id: string, @Body() updateRoleDto: UpdateRoleDto) {

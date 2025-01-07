@@ -24,6 +24,7 @@ export class DynamicRolesGuard implements CanActivate {
       context.getClass(),
     ]);
 
+
     const request = context.switchToHttp().getRequest();
     const user = await this.userService.findOne(request.user._id);
 

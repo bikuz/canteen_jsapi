@@ -31,7 +31,10 @@ export class ControllerScannerService {
 
       const controllerRoles = this.reflector.get('roles', controller.constructor) || [];
       
-      if (controllerRoles.includes('super-admin') || controllerRoles.includes('*')) {
+      // if (controllerRoles.includes('super-admin') || controllerRoles.includes('*')) {
+      //   return null;
+      // }
+      if (controllerRoles.includes('super-admin')) {
         return null;
       }
 
@@ -44,7 +47,8 @@ export class ControllerScannerService {
 
           const methodRoles = this.reflector.get('roles', prototype[methodName]) || [];
           
-          return !methodRoles.includes('super-admin') && !methodRoles.includes('*');
+          // return !methodRoles.includes('super-admin') && !methodRoles.includes('*');
+          return !methodRoles.includes('super-admin') ;
         }),
       };
     })
