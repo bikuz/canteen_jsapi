@@ -19,6 +19,7 @@ import { UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../authjwt/jwt-auth.guard';
 import { generateShortId } from '../helper/code-generator';
 import { DynamicRolesGuard } from '../helper/dynamic-auth.guard';
+import { Roles } from '../helper/roles.decorator';
 
 @Controller('orders')
 @UseGuards(JwtAuthGuard, DynamicRolesGuard)
@@ -76,6 +77,7 @@ export class OrdersController {
 
   
   @Post('checkItems')
+  @Roles('*')
   @ApiOperation({ summary: 'Check if food items are available' })
   async checkItems(@Body() checkItemsDto: CheckItemsDto) {
     try {
@@ -488,6 +490,18 @@ export class OrdersController {
       token,
       shortId,
       orderStatus
+    );
+  }
+
+  @Get('analyze')
+  @ApiOperation({ summary: 'Search orders for analytics' })
+  async analyze(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+  ) {
+    return this.findAll(
+      startDate,
+      endDate
     );
   }
 
