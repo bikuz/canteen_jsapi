@@ -37,8 +37,19 @@ export class DynamicRolesGuard implements CanActivate {
       return false;
     }
 
-    // If specific roles are required, check them first
+    // Check if user is super-admin first
+    if (user.roles.some(role => role.name === 'super-admin')) {
+      return true;
+    }
+
+    // If specific roles are required via @Roles decorator
     if (requiredRoles && requiredRoles.length > 0) {
+      // If * is in required roles, allow access
+      if (requiredRoles.includes('*')) {
+        return true;
+      }
+
+      // Check if user has any of the required roles
       const hasRequiredRole = user.roles.some(role => 
         requiredRoles.includes(role.name)
       );
@@ -49,10 +60,11 @@ export class DynamicRolesGuard implements CanActivate {
       }
     }
 
+    // Check permissions in all roles
     const controllerName = context.getClass().name;
     const actionName = context.getHandler().name;
 
-    // Check permissions across all roles
+    // // Check permissions across all roles
     // for (const role of user.roles) {
     //   if (role.permissions && role.permissions.has(controllerName)) {
     //     const controllerPermissions = role.permissions.get(controllerName);
@@ -66,10 +78,6 @@ export class DynamicRolesGuard implements CanActivate {
     //     }
     //   }
     // }
-
-    if (user.roles.some(role => role.name === 'super-admin')) {
-      return true;
-    }
     
     for (const role of user.roles.filter(r => r.permissions)) {
         if (role.permissions.get(controllerName)?.get(actionName)) {

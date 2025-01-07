@@ -6,6 +6,7 @@ import { CreateUserDto,UpdateUserDto } from './dto';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../authjwt/jwt-auth.guard';
 import { DynamicRolesGuard } from '../helper/dynamic-auth.guard';
+import { Roles } from '../helper/roles.decorator';
 
 @Controller('users')
 @UseGuards(JwtAuthGuard, DynamicRolesGuard)
@@ -49,9 +50,18 @@ export class UserController {
   async findOne(@Param('id') id: string) {
     return this.userService.findOne(id);
   }
-  @Get(':id/profile')
-  async findProfile(@Param('id') id: string) {
-    return await this.userService.findProfile(id);
+  @Get('profile')
+  async findProfile(  
+    @Req() req: Request & { user?: any },
+  ) {
+    if (!req.user) {
+      throw new HttpException(
+        'User must be logged in to get profile',
+        HttpStatus.UNAUTHORIZED
+      );
+    }
+    const userId = req.user?._id;
+    return await this.userService.findProfile(userId);
   }
 
   @Patch(':id')
@@ -62,5 +72,21 @@ export class UserController {
   @Delete(':id')
   async remove(@Param('id') id: string) {
     return this.userService.remove(id);
+  }
+
+  @Get('permissions')
+  @Roles('*')
+  async getUserPermissions(
+    @Req() req: Request& { user?: any },
+    // @Param('id') id: string
+  ) {
+    if (!req.user) {
+      throw new HttpException(
+        'User must be logged in to get permissions',
+        HttpStatus.UNAUTHORIZED
+      );
+    }
+    const userId = req.user?._id;
+    return await this.userService.getUserPermissions(userId);
   }
 }

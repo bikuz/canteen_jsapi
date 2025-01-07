@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { User } from './users.model';
@@ -129,5 +129,40 @@ export class UserService {
       .then(users => users.filter(user => 
         !user.roles.some(role => role._id.toString() === said.toString())
       ));
+  }
+
+  async getUserPermissions(userId: string): Promise<string[]> {
+    // Find user with populated roles
+    const user = await this.userModel
+      .findById(userId)
+      .populate('roles')
+      .exec();
+
+    if (!user) {
+      throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+    }
+
+    // Extract all permissions from all roles
+    const allPermissions = user.roles.flatMap(role => {
+      const permissions: string[] = [];
+      
+      // Iterate through the outer map (controllers)
+      role.permissions.forEach((actionMap, controller) => {
+        // Iterate through the inner map (actions)
+        actionMap.forEach((isAllowed, action) => {
+          // Only include permissions that are set to true
+          if (isAllowed) {
+            permissions.push(`${controller}.${action}`);
+          }
+        });
+      });
+      
+      return permissions;
+    });
+
+    // Remove duplicates using Set and convert back to array
+    const uniquePermissions = [...new Set(allPermissions)];
+
+    return uniquePermissions;
   }
 }

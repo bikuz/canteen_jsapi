@@ -19,9 +19,8 @@ export class ControllerScannerService {
     const controllers = this.discoveryService
       .getControllers()
       .map((wrapper) => wrapper.instance)
-      .filter((instance) => instance); // Filter out undefined instances
+      .filter((instance) => instance);
 
-     
     const controllerData = controllers.map((controller) => {
       const prototype = Object.getPrototypeOf(controller);
       const methods = this.metadataScanner.getAllMethodNames(prototype);
@@ -30,16 +29,26 @@ export class ControllerScannerService {
         return null;
       }
 
+      const controllerRoles = this.reflector.get('roles', controller.constructor) || [];
+      
+      if (controllerRoles.includes('super-admin') || controllerRoles.includes('*')) {
+        return null;
+      }
+
       return {
         controller: controller.constructor.name.replace('Controller', ''),
-        actions: methods.filter(
-          (methodName) =>
-            typeof prototype[methodName] === 'function' &&
-            methodName !== 'constructor',
-        ),
+        actions: methods.filter((methodName) => {
+          if (typeof prototype[methodName] !== 'function' || methodName === 'constructor') {
+            return false;
+          }
+
+          const methodRoles = this.reflector.get('roles', prototype[methodName]) || [];
+          
+          return !methodRoles.includes('super-admin') && !methodRoles.includes('*');
+        }),
       };
     })
-    .filter(data => data !== null)
+    .filter(data => data !== null && data.actions.length > 0)
     .sort((a, b) => a.controller.localeCompare(b.controller));
 
     return controllerData;
