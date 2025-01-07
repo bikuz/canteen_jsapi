@@ -46,11 +46,23 @@ export class UserController {
     
   }
 
-  @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return this.userService.findOne(id);
+  @Get('permissions')
+  @Roles('*')
+  async getUserPermissions(
+    @Req() req: Request& { user?: any },
+  ) {
+    if (!req.user) {
+      throw new HttpException(
+        'User must be logged in to get permissions',
+        HttpStatus.UNAUTHORIZED
+      );
+    }
+    const userId = req.user?._id;
+    return await this.userService.getUserPermissions(userId.toString());
   }
+
   @Get('profile')
+  @Roles('*')
   async findProfile(  
     @Req() req: Request & { user?: any },
   ) {
@@ -61,7 +73,12 @@ export class UserController {
       );
     }
     const userId = req.user?._id;
-    return await this.userService.findProfile(userId);
+    return await this.userService.findProfile(userId.toString());
+  }
+
+  @Get(':id')
+  async findOne(@Param('id') id: string) {
+    return this.userService.findOne(id);
   }
 
   @Patch(':id')
@@ -72,21 +89,5 @@ export class UserController {
   @Delete(':id')
   async remove(@Param('id') id: string) {
     return this.userService.remove(id);
-  }
-
-  @Get('permissions')
-  @Roles('*')
-  async getUserPermissions(
-    @Req() req: Request& { user?: any },
-    // @Param('id') id: string
-  ) {
-    if (!req.user) {
-      throw new HttpException(
-        'User must be logged in to get permissions',
-        HttpStatus.UNAUTHORIZED
-      );
-    }
-    const userId = req.user?._id;
-    return await this.userService.getUserPermissions(userId);
   }
 }
