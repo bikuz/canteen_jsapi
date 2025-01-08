@@ -21,6 +21,7 @@ import { DynamicRolesGuard } from '../helper/dynamic-auth.guard';
 import { JwtAuthGuard } from '../authjwt/jwt-auth.guard';
 import { Roles } from '../helper/roles.decorator';
 import { ConfigService } from '@nestjs/config';
+import { Public } from '../helper/public.decorator';
 
 // FoodItem.find({ tags: { $in: ['vegan', 'gluten-free'] } });
 // This would allow you to find food items that are either vegan or gluten-free.
@@ -126,8 +127,9 @@ export class MenusController {
       }
   }
 
+  @Public()
   @Get('today/fooditems')
-  @Roles('*')
+  // @Roles('*')
   async fooditemsToday(
       @Req() req: Request
   ) {
