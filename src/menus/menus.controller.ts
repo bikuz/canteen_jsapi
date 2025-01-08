@@ -55,73 +55,56 @@ export class MenusController {
           
           const baseUrl = this.getBaseUrl();
           
-          // Try exact match first
-          let menus = await this.menusService.findByFields({
+          const menus = await this.menusService.findByFields({
               repeatDay: day
           });
           
           console.log('2. Direct query result count:', menus.length);
-          
-          // If no results, try with array contains
-          if (menus.length === 0) {
-              menus = await this.menusService.findByFields({
-                  repeatDay: { $elemMatch: { $eq: day } }
-              });
-              console.log('3. Array query result count:', menus.length);
-          }
-          
-          // If still no results, try case-insensitive
-          if (menus.length === 0) {
-              menus = await this.menusService.findByFields({
-                  repeatDay: { $regex: new RegExp(`^${day}$`, 'i') }
-              });
-              console.log('4. Case-insensitive query result count:', menus.length);
-          }
 
           if (menus.length === 0) {
-              // Log a sample menu document structure
-              // const sampleMenu = await this.menusService.findOne({});
-              // console.log('5. Sample menu structure:', JSON.stringify(sampleMenu, null, 2));
               return [];
           }
 
-          console.log('6. Found menus count:', menus.length);
+          console.log('3. First menu foodItems length:', menus[0]?.foodItems?.length || 0);
           
           const foodItems = menus.reduce((acc, menu) => {
+              console.log('4. Processing menu:', menu._id, 'foodItems count:', menu.foodItems?.length || 0);
               if (menu.foodItems && Array.isArray(menu.foodItems)) {
                   acc.push(...menu.foodItems);
               }
               return acc;
           }, []);
 
+          console.log('5. Total foodItems after reduce:', foodItems.length);
+
           const uniqueFoodItems = Array.from(
               new Map(foodItems.map(item => [item._id, item])).values()
           );
+
+          console.log('6. Unique foodItems count:', uniqueFoodItems.length);
 
           const fooditemWithOrdering = await Promise.all(
               uniqueFoodItems.map(async (_item) => {
                   const isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', _item.category.toString());
                   const ordertimeframe_food = await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
                   const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
-                  const isOrderingAllowed = isOrderingAllowed_cat && isOrderingAllowed_food;
-
-                  // Fetch category details
-                  const category = await this.categoryService.findOne(_item.category.toString());
-
                   return {
                       ..._item,
                       image: _item.image ? `${baseUrl}/${_item.image}` : null,
                       orderingStartTime: ordertimeframe_food ? ordertimeframe_food.orderingStartTime : 0,
                       orderingEndTime: ordertimeframe_food ? ordertimeframe_food.orderingEndTime : 0,
                       isOrderTimeFrameActive: ordertimeframe_food ? ordertimeframe_food.isActive : false,
-                      isOrderingAllowed,
-                      category,  // Include category details
+                      isOrderingAllowed: isOrderingAllowed_cat && isOrderingAllowed_food,
+                      category: await this.categoryService.findOne(_item.category.toString()),
                   };
               }),
           );
+
+          console.log('7. Final processed items count:', fooditemWithOrdering.length);
           return fooditemWithOrdering;
 
       } catch (error) {
+          console.error('Error in fooditemsByDay:', error);
           return [];
       }
   }
