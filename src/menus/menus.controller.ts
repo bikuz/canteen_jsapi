@@ -51,8 +51,15 @@ export class MenusController {
   ) {
       try {
           const baseUrl = this.getBaseUrl();
+          
+          // Normalize the input day
+          const normalizedDay = day.trim().toLowerCase();
+          
+          // Find menus where any of the repeatDays match the normalized day
           const menus = await this.menusService.findByFields({
-              repeatDay: { $in: [day] },
+              repeatDay: { 
+                  $in: [new RegExp(`^${normalizedDay}$`, 'i')] // Case-insensitive match
+              },
           });
 
           if (menus.length === 0) {
