@@ -20,6 +20,7 @@ import { Request } from 'express';
 import { DynamicRolesGuard } from '../helper/dynamic-auth.guard';
 import { JwtAuthGuard } from '../authjwt/jwt-auth.guard';
 import { Roles } from '../helper/roles.decorator';
+import { ConfigService } from '@nestjs/config';
 
 // FoodItem.find({ tags: { $in: ['vegan', 'gluten-free'] } });
 // This would allow you to find food items that are either vegan or gluten-free.
@@ -34,9 +35,13 @@ export class MenusController {
     private readonly foodItemService: FoodItemsService,
     private readonly orderTimeFrameService:OrderTimeFrameService,
     private readonly categoryService:CategoriesService,
+    private readonly configService: ConfigService,
     @InjectModel(OrderTimeFrame.name) private orderTimeFrameModel: Model<OrderTimeFrame>,
   ) {}
 
+  private getBaseUrl(): string {
+      return this.configService.get('baseURL')[0];
+  }
   
   @Get('day/:day/fooditems')
   @Roles('*')
@@ -45,7 +50,7 @@ export class MenusController {
       @Req() req: Request
   ) {
       try {
-          const baseUrl = `${req.protocol}://${req.get('host')}`;
+          const baseUrl = this.getBaseUrl();
           const menus = await this.menusService.findByFields({
               repeatDay: { $in: [day] },
           });
@@ -103,7 +108,7 @@ export class MenusController {
           let todayIndex = new Date().getDay();
           let today = MenusController.days[todayIndex];
 
-          const baseUrl = `${req.protocol}://${req.get('host')}`;
+          const baseUrl = this.getBaseUrl();
           // Use the findByFields service to find menus where repeatDay contains the provided day
           const menus = await this.menusService.findByFields({
               repeatDay: { $in: [today] },  // Check if the day exists in repeatDay array
@@ -178,7 +183,7 @@ export class MenusController {
           const todayIndex = new Date().getDay();
           const today = MenusController.days[todayIndex];
 
-          const baseUrl = `${req.protocol}://${req.get('host')}`;
+          const baseUrl = this.getBaseUrl();
 
           const menus = await this.menusService.findByFields({
               repeatDay: { $in: [today] },  // Check if the day exists in repeatDay array
@@ -261,7 +266,7 @@ async findByPage(
       throw new HttpException('Page and limit must be positive integers.', HttpStatus.BAD_REQUEST);
     }
 
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    const baseUrl = this.getBaseUrl();
     const {menus,total} = await this.menusService.findByPage(pageNumber,limitNumber);
     
     menus.forEach(menu => {
@@ -317,7 +322,7 @@ async create(
     // @UploadedFile() image?: Express.Multer.File,
   ) {
     try {
-        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const baseUrl = this.getBaseUrl();
 
         const updateMenu={
             ...updateMenuDto, 
@@ -350,7 +355,7 @@ async create(
   @Get()
   async findAll(@Req() req: Request) {
     try {
-        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const baseUrl = this.getBaseUrl();
         const menus= await this.menusService.findAll();
 
         // // Process each menu
@@ -393,7 +398,8 @@ async create(
   @Get(':id')
   async findOne(@Param('id') id: string,@Req() req: Request) {
     try {
-      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      // const baseUrl = `${req.protocol}://${req.get('host')}`;
+      const baseUrl = this.getBaseUrl();
       const menu = await this.menusService.findOne(id);
       if (!menu) {
         throw new HttpException('Category not found', HttpStatus.NOT_FOUND);
