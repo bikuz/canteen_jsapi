@@ -50,57 +50,74 @@ export class MenusController {
       @Req() req: Request
   ) {
       try {
-          console.log('=== Debug Info ===');
-          console.log('1. Received day:', day);
+          // console.log('=== Debug Info ===');
+          // console.log('1. Received day:', day);
           
           const baseUrl = this.getBaseUrl();
-          
           const menus = await this.menusService.findByFields({
               repeatDay: day
           });
-          
-          console.log('2. Direct query result count:', menus.length);
 
           if (menus.length === 0) {
               return [];
           }
 
-          console.log('3. First menu foodItems length:', menus[0]?.foodItems?.length || 0);
-          
           const foodItems = menus.reduce((acc, menu) => {
-              console.log('4. Processing menu:', menu._id, 'foodItems count:', menu.foodItems?.length || 0);
               if (menu.foodItems && Array.isArray(menu.foodItems)) {
                   acc.push(...menu.foodItems);
               }
               return acc;
           }, []);
 
-          console.log('5. Total foodItems after reduce:', foodItems.length);
-
           const uniqueFoodItems = Array.from(
               new Map(foodItems.map(item => [item._id, item])).values()
           );
 
-          console.log('6. Unique foodItems count:', uniqueFoodItems.length);
-
           const fooditemWithOrdering = await Promise.all(
               uniqueFoodItems.map(async (_item) => {
-                  const isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', _item.category.toString());
-                  const ordertimeframe_food = await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
-                  const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
-                  return {
-                      ..._item,
-                      image: _item.image ? `${baseUrl}/${_item.image}` : null,
-                      orderingStartTime: ordertimeframe_food ? ordertimeframe_food.orderingStartTime : 0,
-                      orderingEndTime: ordertimeframe_food ? ordertimeframe_food.orderingEndTime : 0,
-                      isOrderTimeFrameActive: ordertimeframe_food ? ordertimeframe_food.isActive : false,
-                      isOrderingAllowed: isOrderingAllowed_cat && isOrderingAllowed_food,
-                      category: await this.categoryService.findOne(_item.category.toString()),
-                  };
-              }),
+                  try {
+                      // Check if category exists
+                      let categoryDetails = null;
+                      let isOrderingAllowed_cat = false;
+
+                      if (_item.category) {
+                          try {
+                              categoryDetails = await this.categoryService.findOne(_item.category.toString());
+                              isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', _item.category.toString());
+                          } catch (categoryError) {
+                              console.log('Error processing category for item:', _item._id, categoryError);
+                          }
+                      }
+
+                      const ordertimeframe_food = await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
+                      const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
+
+                      return {
+                          ..._item,
+                          image: _item.image ? `${baseUrl}/${_item.image}` : null,
+                          orderingStartTime: ordertimeframe_food ? ordertimeframe_food.orderingStartTime : 0,
+                          orderingEndTime: ordertimeframe_food ? ordertimeframe_food.orderingEndTime : 0,
+                          isOrderTimeFrameActive: ordertimeframe_food ? ordertimeframe_food.isActive : false,
+                          isOrderingAllowed: isOrderingAllowed_cat && isOrderingAllowed_food,
+                          category: categoryDetails,  // Will be null if category doesn't exist
+                      };
+                  } catch (error) {
+                      console.error('Error processing food item:', _item._id, error);
+                      // Return item with default values if processing fails
+                      return {
+                          ..._item,
+                          image: _item.image ? `${baseUrl}/${_item.image}` : null,
+                          orderingStartTime: 0,
+                          orderingEndTime: 0,
+                          isOrderTimeFrameActive: false,
+                          isOrderingAllowed: false,
+                          category: null
+                      };
+                  }
+              })
           );
 
-          console.log('7. Final processed items count:', fooditemWithOrdering.length);
+          // console.log('7. Final processed items count:', fooditemWithOrdering.length);
           return fooditemWithOrdering;
 
       } catch (error) {
@@ -152,30 +169,46 @@ export class MenusController {
 
           const fooditemWithOrdering = await Promise.all(
               uniqueFoodItems.map(async (_item) => {
-              //   let ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('fooditem', _item._id.toString());
-              //   let isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
-              //   if(isOrderingAllowed){
-              //       //check if it is disabled through category
-              //       ordertimeframe= await this.orderTimeFrameService.findOrderTimeframe('category', _item.category.toString());
-              //       isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
-              //   }
-              const isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', _item.category.toString());
-              const ordertimeframe_food= await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
-              const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
-              const isOrderingAllowed = isOrderingAllowed_cat && isOrderingAllowed_food;
+                  try {
+                      // Check if category exists
+                      let categoryDetails = null;
+                      let isOrderingAllowed_cat = false;
 
-              const category = await this.categoryService.findOne(_item.category.toString());
+                      if (_item.category) {
+                          try {
+                              categoryDetails = await this.categoryService.findOne(_item.category.toString());
+                              isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', _item.category.toString());
+                          } catch (categoryError) {
+                              console.log('Error processing category for item:', _item._id, categoryError);
+                          }
+                      }
 
-                return {
-                    ..._item,  
-                    image: _item.image ? `${baseUrl}/${_item.image}` : null,
-                    orderingStartTime:ordertimeframe_food?ordertimeframe_food.orderingStartTime:0,
-                    orderingEndTime:ordertimeframe_food?ordertimeframe_food.orderingEndTime:0,
-                    isOrderTimeFrameActive:ordertimeframe_food?ordertimeframe_food.isActive:false,
-                    isOrderingAllowed,  
-                    category
-                };
-              }),
+                      const ordertimeframe_food = await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
+                      const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
+
+                      return {
+                          ..._item,
+                          image: _item.image ? `${baseUrl}/${_item.image}` : null,
+                          orderingStartTime: ordertimeframe_food ? ordertimeframe_food.orderingStartTime : 0,
+                          orderingEndTime: ordertimeframe_food ? ordertimeframe_food.orderingEndTime : 0,
+                          isOrderTimeFrameActive: ordertimeframe_food ? ordertimeframe_food.isActive : false,
+                          isOrderingAllowed: isOrderingAllowed_cat && isOrderingAllowed_food,
+                          category: categoryDetails,  // Will be null if category doesn't exist
+                      };
+                  } catch (error) {
+                      console.error('Error processing food item:', _item._id, error);
+                      // Return item with default values if processing fails
+                      return {
+                          ..._item,
+                          image: _item.image ? `${baseUrl}/${_item.image}` : null,
+                          orderingStartTime: 0,
+                          orderingEndTime: 0,
+                          isOrderTimeFrameActive: false,
+                          isOrderingAllowed: false,
+                          category: null
+                      };
+                  }
+              })
           );
           return fooditemWithOrdering;
       } catch (error) {
@@ -188,7 +221,7 @@ export class MenusController {
   @Roles('*')
   async fooditemsTodayByCategory(
       @Req() req: Request,
-      @Param('categoryId') categoryId: string // Extract categoryId from the route parameter
+      @Param('categoryId') categoryId: string
   ) {
       try {
           const todayIndex = new Date().getDay();
@@ -212,13 +245,22 @@ export class MenusController {
               return acc;
           }, []);  // Start with an empty array
 
-          // Ensure unique food items by their _id and filter by category and availability
+          // Modified filter to safely check for category
           const uniqueFoodItems = Array.from(
               new Map(foodItems.map(item => [item._id, item])).values()
-          ).filter(item => item.category.toString() === categoryId && item.isAvailable);
+          ).filter(item => 
+              item.isAvailable && 
+              item.category && 
+              item.category.toString() === categoryId
+          );
 
           const fooditemWithOrdering = await Promise.all(
               uniqueFoodItems.map(async (_item) => {
+                  // Safely check if category exists before processing
+                  if (!_item.category) {
+                      return undefined;
+                  }
+
                   const isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', _item.category.toString());
                   const ordertimeframe_food = await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
                   const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
