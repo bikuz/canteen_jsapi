@@ -50,27 +50,43 @@ export class MenusController {
       @Req() req: Request
   ) {
       try {
+          console.log('=== Debug Info ===');
+          console.log('1. Received day:', day);
+          
           const baseUrl = this.getBaseUrl();
           
-          // // Normalize the input day
-          // const normalizedDay = day.trim().toLowerCase();
-          
-          // // Find menus where any of the repeatDays match the normalized day
-          // const menus = await this.menusService.findByFields({
-          //     repeatDay: { 
-          //         $in: [new RegExp(`^${normalizedDay}$`, 'i')] // Case-insensitive match
-          //     },
-          // });
-
-          // Direct string match instead of RegExp
-          const menus = await this.menusService.findByFields({
+          // Try exact match first
+          let menus = await this.menusService.findByFields({
               repeatDay: day
           });
+          
+          console.log('2. Direct query result count:', menus.length);
+          
+          // If no results, try with array contains
+          if (menus.length === 0) {
+              menus = await this.menusService.findByFields({
+                  repeatDay: { $elemMatch: { $eq: day } }
+              });
+              console.log('3. Array query result count:', menus.length);
+          }
+          
+          // If still no results, try case-insensitive
+          if (menus.length === 0) {
+              menus = await this.menusService.findByFields({
+                  repeatDay: { $regex: new RegExp(`^${day}$`, 'i') }
+              });
+              console.log('4. Case-insensitive query result count:', menus.length);
+          }
 
           if (menus.length === 0) {
+              // Log a sample menu document structure
+              // const sampleMenu = await this.menusService.findOne({});
+              // console.log('5. Sample menu structure:', JSON.stringify(sampleMenu, null, 2));
               return [];
           }
 
+          console.log('6. Found menus count:', menus.length);
+          
           const foodItems = menus.reduce((acc, menu) => {
               if (menu.foodItems && Array.isArray(menu.foodItems)) {
                   acc.push(...menu.foodItems);
