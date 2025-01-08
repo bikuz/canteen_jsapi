@@ -21,6 +21,7 @@ import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { JwtAuthGuard } from '../authjwt/jwt-auth.guard';
 import { DynamicRolesGuard } from '../helper/dynamic-auth.guard';
+import { ConfigService } from '@nestjs/config';
 
 @Controller('categories')
 @UseGuards(JwtAuthGuard, DynamicRolesGuard)
@@ -33,7 +34,12 @@ export class CategoriesController {
       private readonly orderTimeFrameService:OrderTimeFrameService,
       private readonly foodItemService:FoodItemsService,
       @InjectModel(OrderTimeFrame.name) private orderTimeFrameModel: Model<OrderTimeFrame>,
+      private configService: ConfigService,
     ) {}
+
+    private getBaseUrl(): string {
+        return this.configService.get('baseURL')[0];  // Gets https://canteen.icimod.org/api
+    }
 
     @Get('page/:page/limit/:limit')
     async findByPage(
@@ -49,7 +55,7 @@ export class CategoriesController {
           throw new HttpException('Page and limit must be positive integers.', HttpStatus.BAD_REQUEST);
         }
 
-        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const baseUrl = this.getBaseUrl();
         const {categories,total} = await this.categoryService.findByPage(pageNumber,limitNumber);
         
         const categoriesWithOrdering = await Promise.all(
@@ -87,7 +93,7 @@ export class CategoriesController {
     ){
         // here id belongs to category id
         try{
-            const baseUrl = `${req.protocol}://${req.get('host')}`;
+            const baseUrl = this.getBaseUrl();
             const fooditems = await this.foodItemService.findByFields({
                 'category':id
             });
@@ -165,7 +171,7 @@ export class CategoriesController {
     ) {
         try {
           console.log(createCategoryDto);
-            const baseUrl = `${req.protocol}://${req.get('host')}`;
+            const baseUrl = this.getBaseUrl();
             // Ensure the image path is set if an image file was uploaded
             const imagePath = image ? `${CategoriesController.imagePath}/${image.filename}` : null;
             
@@ -265,7 +271,7 @@ export class CategoriesController {
             }
 
             let imagePath = category.image;
-            const baseUrl = `${req.protocol}://${req.get('host')}`;
+            const baseUrl = this.getBaseUrl();
 
             // // If a new image is uploaded, process it and replace the old one
             // if (image) {
@@ -329,7 +335,7 @@ export class CategoriesController {
     async findAll(@Req() req: Request) {
        
         try {
-            const baseUrl = `${req.protocol}://${req.get('host')}`;
+            const baseUrl = this.getBaseUrl();
             const categories = await this.categoryService.findAll();
             // return categories.map((category) => ({
             //   ...category,
@@ -365,7 +371,7 @@ export class CategoriesController {
     async findOne(@Param('id') id: string, @Req() req: Request) {
 
         try {
-            const baseUrl = `${req.protocol}://${req.get('host')}`;
+            const baseUrl = this.getBaseUrl();
             const category = await this.categoryService.findOne(id);
             if (!category) {
               throw new HttpException('Category not found', HttpStatus.NOT_FOUND);

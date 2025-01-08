@@ -7,7 +7,8 @@ security:
     - ^/logout$/
     - ^/error
     - ^/delete-user
-
+baseURL:
+  - https://canteen.icimod.org/api
 ignoreControllers:
   - ControllerScannerController
   - AuthController

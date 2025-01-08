@@ -18,6 +18,7 @@ import { Request } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { JwtAuthGuard } from '../authjwt/jwt-auth.guard';
 import { DynamicRolesGuard } from '../helper/dynamic-auth.guard';
+import { ConfigService } from '@nestjs/config';
 
 @Controller('fooditems')
 @UseGuards(JwtAuthGuard, DynamicRolesGuard)
@@ -26,9 +27,14 @@ export class FooditemsController {
 
     constructor(
         private readonly foodItemService: FoodItemsService,
-        private readonly orderTimeFrameService:OrderTimeFrameService,
+        private readonly orderTimeFrameService: OrderTimeFrameService,
+        private readonly configService: ConfigService,
         @InjectModel(OrderTimeFrame.name) private orderTimeFrameModel: Model<OrderTimeFrame>,
     ){}
+
+    private getBaseUrl(): string {
+        return this.configService.get('baseURL')[0];
+    }
 
     @Get('page/:page/limit/:limit')
     async findByPage(
@@ -44,7 +50,7 @@ export class FooditemsController {
           throw new HttpException('Page and limit must be positive integers.', HttpStatus.BAD_REQUEST);
         }
 
-        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const baseUrl = this.getBaseUrl();
         const {fooditems,total} = await this.foodItemService.findByPage(pageNumber,limitNumber);
         
         const foodItemWithOrdering = await Promise.all(
@@ -93,7 +99,7 @@ export class FooditemsController {
           throw new HttpException('Page and limit must be positive integers.', HttpStatus.BAD_REQUEST);
         }
 
-        const baseUrl = `${req.protocol}://${req.get('host')}`;
+        const baseUrl = this.getBaseUrl();
         const {fooditems,total} = await this.foodItemService.findByPageByCategory(pageNumber,limitNumber,categoryId);
         
         const foodItemWithOrdering = await Promise.all(
@@ -162,7 +168,7 @@ export class FooditemsController {
         @Req() req: Request
     ) {
         try {
-            const baseUrl = `${req.protocol}://${req.get('host')}`;
+            const baseUrl = this.getBaseUrl();
             // Ensure the image path is set if an image file was uploaded
             const imagePath = image ? `${FooditemsController.imagePath}/${image.filename}` : null;
             
@@ -252,7 +258,7 @@ export class FooditemsController {
             }
 
             let imagePath = fooditem.image;;
-            const baseUrl = `${req.protocol}://${req.get('host')}`;
+            const baseUrl = this.getBaseUrl();
 
              if (image) {
               // Delete the old image if it exists
@@ -309,7 +315,7 @@ export class FooditemsController {
     @Get()
     async findAll(@Req() req: Request) {
         try {
-            const baseUrl = `${req.protocol}://${req.get('host')}`;
+            const baseUrl = this.getBaseUrl();
             const fooditems = await this.foodItemService.findAll();
 
             const fooditemWithOrdering = await Promise.all(
@@ -350,7 +356,7 @@ export class FooditemsController {
     @Get(':id')
     async findOne(@Param('id') id: string,@Req() req: Request) {
         try {
-            const baseUrl = `${req.protocol}://${req.get('host')}`;
+            const baseUrl = this.getBaseUrl();
             const fooditem = await this.foodItemService.findOne(id);
             if (!fooditem) {
               throw new HttpException('Category not found', HttpStatus.NOT_FOUND);
