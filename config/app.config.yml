@@ -9,6 +9,7 @@ security:
     - ^/delete-user
 baseURL:
   - https://canteen.icimod.org/api
+  # - http://localhost:3000
 ignoreControllers:
   - ControllerScannerController
   - AuthController
