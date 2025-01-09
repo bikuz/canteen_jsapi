@@ -22,6 +22,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { JwtAuthGuard } from '../authjwt/jwt-auth.guard';
 import { DynamicRolesGuard } from '../helper/dynamic-auth.guard';
 import { ConfigService } from '@nestjs/config';
+import { Roles } from '../helper/roles.decorator';
 
 @Controller('categories')
 @UseGuards(JwtAuthGuard, DynamicRolesGuard)
@@ -39,6 +40,12 @@ export class CategoriesController {
 
     private getBaseUrl(): string {
         return this.configService.get('baseURL')[0];  // Gets https://canteen.icimod.org/api
+    }
+
+    @Get('getAll')
+    @Roles('*')
+    async getAllCategories(@Req() req: Request){
+      return this.findAll(req);
     }
 
     @Get('page/:page/limit/:limit')
@@ -330,6 +337,8 @@ export class CategoriesController {
                 error.status ||HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+
+    
 
     @Get()
     async findAll(@Req() req: Request) {
