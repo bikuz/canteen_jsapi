@@ -31,6 +31,7 @@ export class UserService {
     const [users, total] = await Promise.all([
       this.userModel
         .find(searchCriteria)
+        .select('-password')
         .populate('roles')
         .skip(skip)
         .limit(limit)
@@ -148,6 +149,7 @@ export class UserService {
     const [users, total] = await Promise.all([
       this.userModel
         .find(finalCriteria)
+        .select('-password')
         .populate('roles')
         .skip(skip)
         .limit(limit)
