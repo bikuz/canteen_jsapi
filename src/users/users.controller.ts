@@ -91,14 +91,14 @@ export class UserController {
     const searchCriteria = query.search ? {
       $or: [
         { username: { $regex: query.search, $options: 'i' } },
-        { firstName: { $regex: query.search, $options: 'i' } },
-        { lastName: { $regex: query.search, $options: 'i' } },
-        { phoneNumber: { $regex: query.search, $options: 'i' } },
-        { email: { $regex: query.search, $options: 'i' } },
+        { 'profile.firstName': { $regex: query.search, $options: 'i' } },
+        { 'profile.lastName': { $regex: query.search, $options: 'i' } },
+        { 'profile.phoneNumber': { $regex: query.search, $options: 'i' } },
+        { 'profile.email': { $regex: query.search, $options: 'i' } },
         {
           $expr: {
             $regexMatch: {
-              input: { $concat: ['$firstName', ' ', '$lastName'] },
+              input: { $concat: ['$profile.firstName', ' ', '$profile.lastName'] },
               regex: query.search,
               options: 'i'
             }

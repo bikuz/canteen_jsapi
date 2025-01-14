@@ -205,4 +205,36 @@ export class UserService {
 
     return uniquePermissions;
   }
+
+  async findWithPipeline(pipeline: any[], page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+    
+    // Add pagination to pipeline
+    const paginatedPipeline = [
+      ...pipeline,
+      { $skip: skip },
+      { $limit: limit }
+    ];
+
+    // Execute the aggregation
+    const [results, countResult] = await Promise.all([
+      this.userModel.aggregate(paginatedPipeline),
+      this.userModel.aggregate([
+        ...pipeline,
+        { $count: 'total' }
+      ])
+    ]);
+
+    const total = countResult[0]?.total || 0;
+
+    return {
+      data: results,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
+  }
 }
