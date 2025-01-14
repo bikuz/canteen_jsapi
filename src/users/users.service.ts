@@ -25,12 +25,27 @@ export class UserService {
   }
 
   
-  async findAll():Promise<FlattenMaps<User>[]> {
-    return this.userModel.find()
-      .select('-password')
-      .populate('roles')
-      .lean()
-      .exec();
+  async findAll(searchCriteria = {}, page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
+    
+    const [users, total] = await Promise.all([
+      this.userModel
+        .find(searchCriteria)
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.userModel.countDocuments(searchCriteria)
+    ]);
+
+    return {
+      data: users,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
   }
 
   async findOne(id: string): Promise<User> {
@@ -121,23 +136,32 @@ export class UserService {
     return user.roles.map(role => role.name);
   }
   
-  async findAllExceptSuperAdmin(): Promise<FlattenMaps<User>[]> {
-    // Find the super-admin role ID first
-    const superAdminRole = await this.roleModel.findOne({ name: 'super-admin' }).exec();
+  async findAllExceptSuperAdmin(searchCriteria = {}, page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
     
-    if (!superAdminRole) {
-      throw new NotFoundException('Super-admin role not found');
-    }
+    const finalCriteria = {
+      ...searchCriteria,
+      roles: { $ne: 'super-admin' }
+    };
 
-    const said = superAdminRole._id;
-    return this.userModel.find()
-      .select('-password')
-      .populate('roles')
-      .lean()
-      .exec()
-      .then(users => users.filter(user => 
-        !user.roles.some(role => role._id.toString() === said.toString())
-      ));
+    const [users, total] = await Promise.all([
+      this.userModel
+        .find(finalCriteria)
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.userModel.countDocuments(finalCriteria)
+    ]);
+
+    return {
+      data: users,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
   }
 
   async getUserPermissions(userId: string): Promise<string[]> {

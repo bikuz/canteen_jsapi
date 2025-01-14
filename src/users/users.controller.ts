@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete,
-   Req,UseGuards, HttpException, HttpStatus } from '@nestjs/common';
+   Req,UseGuards, HttpException, HttpStatus, Query } from '@nestjs/common';
 import { UserService } from './users.service';
 import { CreateUserDto,UpdateUserDto } from './dto';
 
@@ -66,6 +66,11 @@ export class UserController {
   @Get()
   async findAll(
     @Req() req: Request & { user?: any },
+    @Query() query: {
+      search?: string;
+      page?: number;
+      limit?: number;
+    }
   ) {
     if (!req.user) {
       throw new HttpException(
@@ -78,17 +83,38 @@ export class UserController {
     const userId = req.user?._id;
     const roles = await this.userService.findUserRole(userId);
 
+    // Set default pagination values
+    const page = query.page || 1;
+    const limit = query.limit || 10;
+    
+    // Create search criteria
+    const searchCriteria = query.search ? {
+      $or: [
+        { username: { $regex: query.search, $options: 'i' } },
+        { firstName: { $regex: query.search, $options: 'i' } },
+        { lastName: { $regex: query.search, $options: 'i' } },
+        { phoneNumber: { $regex: query.search, $options: 'i' } },
+        { email: { $regex: query.search, $options: 'i' } },
+        {
+          $expr: {
+            $regexMatch: {
+              input: { $concat: ['$firstName', ' ', '$lastName'] },
+              regex: query.search,
+              options: 'i'
+            }
+          }
+        }
+      ]
+    } : {};
+
     // Check if user has super-admin role
     const isSuperAdmin = roles.some(role => role === 'super-admin');
     
     if (isSuperAdmin) {
-      return await this.userService.findAll();
+      return await this.userService.findAll(searchCriteria, page, limit);
     }
-     
     
-    const users = await this.userService.findAllExceptSuperAdmin();
-    return users;
-    
+    return await this.userService.findAllExceptSuperAdmin(searchCriteria, page, limit);
   }
 
   @Get(':id')
