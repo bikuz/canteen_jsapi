@@ -58,10 +58,20 @@ export class UserController {
     return await this.userService.findUserRole(userId.toString());
   }
 
+  @Get('search')
+  async searchUsers(@Req() req: Request & { user?: any }, @Query() query: {
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) {
+    return this.findAll(req, query);
+  }
+
   @Post()
   async create(@Body() createUserDto: CreateUserDto) {
     return this.userService.create(createUserDto);
   }
+ 
 
   @Get()
   async findAll(

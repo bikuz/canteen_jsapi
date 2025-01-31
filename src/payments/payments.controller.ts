@@ -31,7 +31,8 @@ export class PaymentsController {
     @Query('paymentStatus') paymentStatus?: string,
     @Query('token') token?: string,
     @Query('shortId') shortId?: string,
-    @Query('orderStatus') orderStatus?: string
+    @Query('orderStatus') orderStatus?: string,
+    @Query('customer') customer?: string
   ) {
     try {
       // Build query object
@@ -58,6 +59,33 @@ export class PaymentsController {
 
       if (orderStatus) {
         query.status = orderStatus;
+      }
+
+      // If customer search parameter is provided
+      if (customer) {
+        // Find users matching the search criteria
+        const userSearchPipeline = [
+          {
+            $match: {
+              $or: [
+                { username: { $regex: customer, $options: 'i' } },
+                { 'profile.firstName': { $regex: customer, $options: 'i' } },
+                { 'profile.lastName': { $regex: customer, $options: 'i' } },
+                { 'profile.fullName': { $regex: customer, $options: 'i' } }
+              ]
+            }
+          }
+        ];
+        
+        const matchingUsers = await this.userService.findWithPipeline(userSearchPipeline);
+        const userIds = matchingUsers.data.map(user => user._id);
+        
+        if (userIds.length > 0) {
+          query.customer = { $in: userIds };
+        } else {
+          // If no matching users found, return empty result
+          return [];
+        }
       }
 
       const orders = await this.orderService.findAll(query);

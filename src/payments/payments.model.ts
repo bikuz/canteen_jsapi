@@ -34,3 +34,27 @@ export class Payment extends Document {
 }
 
 export const PaymentSchema = SchemaFactory.createForClass(Payment);
+
+export interface PaymentCounter {
+  _id: string;
+  type: 'counter';
+  sequence: number;
+  createdAt: Date;
+}
+
+@Schema({ timestamps: true })
+export class PaymentCounter {
+  @Prop()
+  _id: string;
+  
+  @Prop({ required: true })
+  type: 'counter';
+
+  @Prop({ default: 0 })
+  sequence: number;
+
+  @Prop()
+  createdAt: Date;
+}
+
+export const PaymentCounterSchema = SchemaFactory.createForClass(PaymentCounter);

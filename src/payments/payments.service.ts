@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { Payment } from './payments.model';
+import { Payment, PaymentCounter } from './payments.model';
 import { CreatePaymentDto, UpdatePaymentDto } from './dto';
 import { generateCode } from '../helper/code-generator';
 
@@ -11,35 +11,44 @@ export class PaymentsService {
   
   constructor(
     @InjectModel(Payment.name) private paymentModel: Model<Payment>,
+    @InjectModel(PaymentCounter.name) private counterModel: Model<PaymentCounter>,
+  ) {}
+
+
+  private async generateToken(): Promise<string> {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
     
-) {}
+    const counter = await this.counterModel.findOneAndUpdate(
+      { 
+        _id: 'counter_' + startOfDay.toISOString().split('T')[0],
+        type: 'counter'
+      },
+      { 
+        $inc: { sequence: 1 },
+        $setOnInsert: { createdAt: startOfDay }
+      },
+      { 
+        upsert: true, 
+        new: true,
+        lean: true
+      }
+    );
 
-
-  // private async generateToken(): Promise<number> {
-  //   // Get the current date's start (midnight)
-  //   const startOfDay = new Date();
-  //   startOfDay.setHours(0, 0, 0, 0);
-
-  //   // Count the payments created since the start of the day
-  //   const countToday = await this.paymentModel.countDocuments({
-  //     createdAt: { $gte: startOfDay },
-  //   });
-
-  //   // Token starts from 101, so add 101 to the count
-  //   return 101 + countToday;
-  // }
+    return `${101 + counter.sequence}`;
+  }
 
   async create(createPaymentDto: CreatePaymentDto): Promise<Payment> {
-    try{
-      const token = generateCode(4);// Generate the token for this payment
+    try {
+      const token = await this.generateToken(); // Note: now returns a string directly
       const newPayment = new this.paymentModel({
         ...createPaymentDto,
         token,
       });
 
-      const savedPayment = (await newPayment.save());
+      const savedPayment = await newPayment.save();
       return savedPayment.populate('order');
-    }catch(error){
+    } catch(error) {
       throw new Error(`Error creating payment: ${error.message}`)
     }
   }

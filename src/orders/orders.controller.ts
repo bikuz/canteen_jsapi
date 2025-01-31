@@ -161,8 +161,8 @@ export class OrdersController {
           const payment = await this.paymentService.filterOne({order: item._id.toString()});
           return {
             ...item,
-            token: payment.token,
-            paymentStatus: payment.paymentStatus,
+            token: payment?.token || null,
+            paymentStatus: payment?.paymentStatus || 'unknown',
             isCancelAllowed: await this.ordersService.isCancelAllowed(item._id.toString())
           };
         })
@@ -512,7 +512,8 @@ export class OrdersController {
     @Query('paymentStatus') paymentStatus?: string,
     @Query('token') token?: string,
     @Query('shortId') shortId?: string,
-    @Query('orderStatus') orderStatus?: string
+    @Query('orderStatus') orderStatus?: string,
+    @Query('customer') customer?: string
   ) {
     try {
       // Build query object
@@ -524,9 +525,7 @@ export class OrdersController {
           query.createdAt.$gte = new Date(startDate);
         }
         if (endDate) {
-          // Set end date to end of day (23:59:59.999)
           const endDateTime = new Date(endDate);
-          // endDateTime.setHours(23, 59, 59, 999);
           endDateTime.setDate(endDateTime.getDate() + 1);
           query.createdAt.$lte = endDateTime;
         }
@@ -541,18 +540,45 @@ export class OrdersController {
         query.status = orderStatus;
       }
 
+      // If customer search parameter is provided
+      if (customer) {
+        // Find users matching the search criteria
+        const userSearchPipeline = [
+          {
+            $match: {
+              $or: [
+                { username: { $regex: customer, $options: 'i' } },
+                { 'profile.firstName': { $regex: customer, $options: 'i' } },
+                { 'profile.lastName': { $regex: customer, $options: 'i' } },
+                { 'profile.fullName': { $regex: customer, $options: 'i' } }
+              ]
+            }
+          }
+        ];
+        
+        const matchingUsers = await this.userService.findWithPipeline(userSearchPipeline);
+        const userIds = matchingUsers.data.map(user => user._id);
+        
+        if (userIds.length > 0) {
+          query.customer = { $in: userIds };
+        } else {
+          // If no matching users found, return empty result
+          return [];
+        }
+      }
+
       const orders = await this.ordersService.findAll(query);
 
       const ordersWithCancelStatus = await Promise.all(
         orders.map(async (item) => {
           const payment = await this.paymentService.filterOne({order: item._id.toString()});
+          const userProfile = await this.userService.findProfile(item.customer.toString());
           return {
             ...item,
-            token: payment.token,
-            userProfile: await this.userService.findProfile(item.customer.toString()),
-            paymentStatus: payment.paymentStatus,
-            paymentMethod: payment.paymentMethod,
-            isCancelAllowed: await this.ordersService.isCancelAllowed(item._id.toString())
+            token: payment?.token || null,
+            paymentStatus: payment?.paymentStatus || 'unknown',
+            isCancelAllowed: await this.ordersService.isCancelAllowed(item._id.toString()),
+            userProfile: userProfile || null
           };
         })
       );
