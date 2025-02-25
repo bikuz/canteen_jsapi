@@ -8,6 +8,16 @@ import { JwtAuthGuard } from '../authjwt/jwt-auth.guard';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Get('mobAppVersion')
+  async mobAppVersion(@Query('os') os: string,) {
+    if(os=='android'){
+      return this.authService.androidAppVersion();
+    }
+    else{
+      return this.authService.iosAppVersion();
+    }     
+  }
+  
   @Post('login/local')
   @UseGuards(LocalAuthGuard)
   async loginLocal(@Request() req) {
@@ -36,15 +46,7 @@ export class AuthController {
     return this.authService.refreshToken(body.refresh_token);
   }
 
-  @Get('mobAppVersion')
-  async mobAppVersion(@Query('os') os: string,) {
-    if(os=='android'){
-      return this.authService.androidAppVersion();
-    }
-    else{
-      return this.authService.iosAppVersion();
-    }     
-  }
+
 
   @Post('register')
   async register(@Body() createUserDto: any) {
