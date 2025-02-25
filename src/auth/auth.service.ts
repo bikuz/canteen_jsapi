@@ -172,6 +172,14 @@ export class AuthService {
     }
   }
 
+  async androidAppVersion():Promise<string>{
+    return this.configService.get<string>('androidAppVersion') || "";
+  }
+
+  async iosAppVersion():Promise<string>{
+    return this.configService.get<string>('iosAppVersion') || "";
+  }
+
   private isValidOrigin(origin: string): boolean {
     if (!origin) {
       return false;
