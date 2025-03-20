@@ -1,16 +1,27 @@
-import { Controller, Get, Post, Body, UseGuards, Request, Query, Headers } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Request, Query, Headers, Res, HttpException, HttpStatus } from '@nestjs/common';
+import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './local-auth.guard';
 import { LdapAuthGuard } from '../auth/ldap.guard';
 import { JwtAuthGuard } from '../authjwt/jwt-auth.guard';
+import { Public } from '../decorators/public.decorator'; // Add this import
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  @Post('login/local')
+  // @Get('confirm-email')
+  // async confirmEmail(@Query('token') token: string, @Res() res: Response) {
+  //   try {
+  //     await this.authService.verifyEmail(token);
+  //     return res.status(200).json({ message: 'Email successfully verified!' });
+  //   } catch (error) {
+  //     throw new HttpException('Invalid or expired token', HttpStatus.BAD_REQUEST);
+  //   }
+  // }
+  @Post('login')
   @UseGuards(LocalAuthGuard)
-  async loginLocal(@Request() req) {
+  async login(@Request() req) {
     return this.authService.login(req.user);
   }
 
@@ -45,5 +56,29 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   logout(@Request() req) {
     return { message: 'Logged out successfully' };
+  }
+
+  @Post('forgot-password')
+  @Public()
+  async forgotPassword(@Body() body: { email: string }) {
+    try {
+      await this.authService.forgotPassword(body.email);
+      return { message: 'Password reset email sent successfully' };
+    } catch (error) {
+      throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
+    }
+  }
+
+  @Post('reset-password')
+  @Public()
+  async resetPassword(
+    @Body() body: { token: string; newPassword: string }
+  ) {
+    try {
+      await this.authService.resetPassword(body.token, body.newPassword);
+      return { message: 'Password reset successfully' };
+    } catch (error) {
+      throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
+    }
   }
 }

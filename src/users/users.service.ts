@@ -6,12 +6,17 @@ import { Role } from '../role/role.model';
 import { CreateUserDto,UpdateUserDto } from './dto';
 import * as bcrypt from 'bcryptjs';
 import { FlattenMaps } from 'mongoose';
+import { randomBytes } from 'crypto';
+import { EmailService } from '../email/email.service';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class UserService {
   constructor(
-    @InjectModel(User.name) private readonly userModel: Model<User>,
+    @InjectModel(User.name) private userModel: Model<User>,
+    private readonly jwtService: JwtService,
     @InjectModel(Role.name) private readonly roleModel: Model<Role>,
+    private readonly emailService: EmailService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {    
@@ -24,7 +29,97 @@ export class UserService {
     return createdUser.save();
   }
 
+  async createUser(createUserDto: CreateUserDto): Promise<User> {
+    try {
+      const { email, password, username, firstname, lastname, profile } = createUserDto;
+      const { phoneNumber } = profile;
+      
+      // Check if user already exists
+      const existingUser = await this.userModel.findOne({ 
+        $or: [{ email }, { username }]
+      });
+      
+      if (existingUser) {
+        throw new HttpException(
+          existingUser.email === email ? 'Email already in use' : 'Username already taken', 
+          HttpStatus.BAD_REQUEST
+        );
+      }
+      
+      // Hash the password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Find customer role in database
+      const customerRole = await this.roleModel.findOne({ name: 'customer' });
+      if (!customerRole) {
+        throw new HttpException('Customer role not found', HttpStatus.INTERNAL_SERVER_ERROR);
+      }
+
+      // Generate verification token
+      const verificationToken = randomBytes(32).toString('hex');
+
+      // Create new user object
+      const newUser = new this.userModel({
+        username,
+        password: hashedPassword,
+        firstname,
+        lastname,
+        email,
+        roles: [customerRole._id], // Assigning customer role by default
+        profile: {
+          firstName: firstname,
+          lastName: lastname,
+          email,
+          phoneNumber,
+        },
+        verificationToken,
+        isEmailVerified: false
+      });
+      
+      // Save user to database
+      const savedUser = await newUser.save();
+      
+      // Generate verification link
+      //const verificationLink = `https://yourapp.com/verify-email?token=${verificationToken}`;
+      const verificationLink = `icanteen://verify-email?token=${verificationToken}`;
+      
+      // Send verification email
+      // In createUser method, pass only the token, not the full link
+      await this.emailService.sendConfirmationEmail(
+        email, 
+        verificationToken  // Changed from verificationLink to verificationToken
+      );
+      
+      // Return user without sensitive information
+      const userResponse = savedUser.toObject();
+      delete userResponse.password;
+      delete userResponse.verificationToken;
+      
+      return userResponse;
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Error creating user', 
+        HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
   
+  // In users.service.ts
+  async verifyEmail(token: string): Promise<User> {
+    // Find user by verification token
+    const user = await this.userModel.findOne({ verificationToken: token });
+    if (!user) {
+      throw new HttpException('Invalid verification token', HttpStatus.BAD_REQUEST);
+    }
+
+    // Update user's email verification status
+    user.isEmailVerified = true;
+    user.verificationToken = undefined; // Clear the verification token
+    await user.save();
+
+    return user;
+  }
+
   async findAll():Promise<FlattenMaps<User>[]> {
     return this.userModel.find()
       .select('-password')
@@ -168,7 +263,6 @@ export class UserService {
           }
         });
       });
-      
       return permissions;
     });
 
@@ -177,4 +271,62 @@ export class UserService {
 
     return uniquePermissions;
   }
+
+  async createPasswordResetToken(email: string): Promise<void> {
+      const user = await this.userModel.findOne({ email });
+      if (!user) {
+        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+      }
+  
+      // Generate reset token
+      const resetToken = randomBytes(32).toString('hex');
+      const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
+  
+      // Save the reset token and expiry
+      user.resetPasswordToken = resetToken;
+      user.resetPasswordExpires = resetTokenExpiry;
+      await user.save();
+  
+      // Send reset email
+      await this.emailService.sendPasswordResetEmail(email, resetToken);
+    }
+  
+    async resetPassword(token: string, newPassword: string): Promise<void> {
+      const user = await this.userModel.findOne({
+        resetPasswordToken: token,
+        resetPasswordExpires: { $gt: Date.now() }
+      });
+  
+      if (!user) {
+        throw new HttpException(
+          'Invalid or expired password reset token',
+          HttpStatus.BAD_REQUEST
+        );
+      }
+  
+      // Hash the new password
+      const salt = await bcrypt.genSalt();
+      const hashedPassword = await bcrypt.hash(newPassword, salt);
+  
+      // Update user's password and clear reset token
+      user.password = hashedPassword;
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpires = undefined;
+      await user.save();
+    }
+
+    async updateEmailVerification(userId: string): Promise<void> {
+        const user = await this.userModel.findById(userId);
+        if (!user) {
+          throw new HttpException('User not found', HttpStatus.NOT_FOUND);
+        }
+    
+        user.isEmailVerified = true;
+        await user.save();
+      }
+
+    async generateToken(userId: string): Promise<string> {
+        // Use your JWT service to generate token
+        return this.jwtService.sign({ sub: userId });
+      }
 }

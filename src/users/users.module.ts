@@ -4,14 +4,20 @@ import { User, UserSchema } from './users.model';
 import { UserService } from './users.service';
 import { RoleModule } from '../role/role.module';
 import { UserController } from './users.controller';
+import { EmailService } from '../email/email.service';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
   imports: [
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
+    JwtModule.register({
+      secret: process.env.JWT_SECRET,
+      signOptions: { expiresIn: '60m' },
+    }),
     forwardRef(() => RoleModule),
   ],
-  providers: [UserService],
+  providers: [UserService, EmailService], // Added EmailService
   controllers: [UserController],
-  exports: [UserService],
+  exports: [UserService, EmailService], // Exporting EmailService for use in other modules
 })
 export class UserModule {}

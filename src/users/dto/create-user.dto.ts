@@ -11,16 +11,22 @@ export class CreateUserDto {
   @IsString()
   password: string;
 
+  @IsNotEmpty()
+  firstname: string;
+
+  @IsNotEmpty()
+  lastname: string;
+
+  @IsEmail()
+  email: string;
+
   // @IsNotEmpty()
   // @IsMongoId()
   // role: Types.ObjectId; 
-  
   @IsNotEmpty()
   @IsArray()
   @IsMongoId({ each: true })
   roles: string[]; // Assumes `Types.ObjectId` translates to string
-
-  
 
   @IsNotEmpty()
   profile: {
