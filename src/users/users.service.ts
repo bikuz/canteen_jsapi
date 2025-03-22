@@ -6,31 +6,17 @@ import { Role } from '../role/role.model';
 import { CreateUserDto,UpdateUserDto } from './dto';
 import * as bcrypt from 'bcryptjs';
 import { FlattenMaps } from 'mongoose';
-import { randomBytes } from 'crypto';
-import { EmailService } from '../email/email.service';
-import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class UserService {
   constructor(
-    @InjectModel(User.name) private userModel: Model<User>,
-    private readonly jwtService: JwtService,
+    @InjectModel(User.name) private readonly userModel: Model<User>,
     @InjectModel(Role.name) private readonly roleModel: Model<Role>,
-    private readonly emailService: EmailService,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {    
     const salt = await bcrypt.genSalt();
     const hashedPassword = await bcrypt.hash(createUserDto.password, salt);
-    
-    // If roles aren't provided, assign customer role by default
-    if (!createUserDto.roles || createUserDto.roles.length === 0) {
-      const customerRole = await this.roleModel.findOne({ name: 'customer' });
-      if (customerRole) {
-        createUserDto.roles = [customerRole._id as string];
-      }
-    }
-    
     const createdUser = new this.userModel({
       ...createUserDto,
       password: hashedPassword,
@@ -38,132 +24,30 @@ export class UserService {
     return createdUser.save();
   }
 
-  async createUser(createUserDto: CreateUserDto): Promise<User> {
-    try {
-      // const { email, password, username, firstname, lastname, profile } = createUserDto;
-      const { email, password, username, firstname, lastname, profile } = createUserDto;
-      const { phoneNumber } = profile;
-      
-      // Check if user already exists
-      const existingUser = await this.userModel.findOne({ 
-        $or: [{ email }, { username }]
-      });
-      
-      if (existingUser) {
-        throw new HttpException(
-          existingUser.email === email ? 'Email already in use' : 'Username already taken', 
-          HttpStatus.BAD_REQUEST
-        );
-      }
-      
-      // Hash the password
-      const hashedPassword = await bcrypt.hash(password, 10);
-
-      // Find customer role in database
-      const customerRole = await this.roleModel.findOne({ name: 'customer' });
-      if (!customerRole) {
-        throw new HttpException('Customer role not found', HttpStatus.INTERNAL_SERVER_ERROR);
-      }
-
-      // Generate verification token
-      const verificationToken = randomBytes(32).toString('hex');
-
-      // Create new user object
-      const newUser = new this.userModel({
-        username,
-        password: hashedPassword,
-        firstname,
-        lastname,
-        email,
-        roles: [customerRole._id], // Assigning customer role by default
-        profile: {
-          firstName: firstname,
-          lastName: lastname,
-          email,
-          phoneNumber,
-        },
-        verificationToken,
-        isEmailVerified: false
-      });
-      
-      // Save user to database
-      const savedUser = await newUser.save();
-      
-      // Generate verification link
-      //const verificationLink = `https://yourapp.com/verify-email?token=${verificationToken}`;
-      const verificationLink = `icanteen://verify-email?token=${verificationToken}`;
-      
-      // Send verification email
-      // In createUser method, pass only the token, not the full link
-      await this.emailService.sendConfirmationEmail(
-        email, 
-        verificationToken  // Changed from verificationLink to verificationToken
-      );
-      
-      // Return user without sensitive information
-      const userResponse = savedUser.toObject();
-      delete userResponse.password;
-      delete userResponse.verificationToken;
-      
-      return userResponse;
-    } catch (error) {
-      throw new HttpException(
-        error.message || 'Error creating user', 
-        HttpStatus.INTERNAL_SERVER_ERROR
-      );
-    }
-  }
   
-  async verifyEmail(token: string): Promise<User> {
-    if (!token) {
-      throw new HttpException('Verification token is required', HttpStatus.BAD_REQUEST);
-    }
+  async findAll(searchCriteria = {}, page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
     
-    console.log('Attempting to verify email with token:', token);
-    
-    // Find user with this token to check if it exists
-    const userWithToken = await this.userModel.findOne({ verificationToken: token });
-    if (!userWithToken) {
-      console.log('No user found with this verification token');
-      throw new HttpException(
-        'Invalid verification token', 
-        HttpStatus.BAD_REQUEST
-      );
-    }
-    
-    console.log('Found user with token:', userWithToken.email);
-    
-    // Find and update user by verification token in one operation
-    const user = await this.userModel.findOneAndUpdate(
-      { verificationToken: token, isEmailVerified: false },
-      { 
-        $set: { 
-          isEmailVerified: true,
-          emailVerifiedAt: new Date()
-        },
-        $unset: { verificationToken: 1 }
-      },
-      { new: true }
-    );
-    
-    if (!user) {
-      throw new HttpException(
-        'Invalid verification token or email already verified', 
-        HttpStatus.BAD_REQUEST
-      );
-    }
-    
-    console.log('Email verified successfully for user:', user.email);
-    return user;
-  }
-  
-  // Remove the generateToken method as it's no longer needed
-  async findAll():Promise<FlattenMaps<User>[]> {
-    return this.userModel.find()
-      .select('-password')
-      .populate('roles')
-      .lean()
-      .exec();
+    const [users, total] = await Promise.all([
+      this.userModel
+        .find(searchCriteria)
+        .select('-password')
+        .populate('roles')
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.userModel.countDocuments(searchCriteria)
+    ]);
+
+    return {
+      data: users,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
   }
 
   async findOne(id: string): Promise<User> {
@@ -254,23 +138,34 @@ export class UserService {
     return user.roles.map(role => role.name);
   }
   
-  async findAllExceptSuperAdmin(): Promise<FlattenMaps<User>[]> {
-    // Find the super-admin role ID first
-    const superAdminRole = await this.roleModel.findOne({ name: 'super-admin' }).exec();
+  async findAllExceptSuperAdmin(searchCriteria = {}, page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
     
-    if (!superAdminRole) {
-      throw new NotFoundException('Super-admin role not found');
-    }
+    const finalCriteria = {
+      ...searchCriteria,
+      roles: { $ne: 'super-admin' }
+    };
 
-    const said = superAdminRole._id;
-    return this.userModel.find()
-      .select('-password')
-      .populate('roles')
-      .lean()
-      .exec()
-      .then(users => users.filter(user => 
-        !user.roles.some(role => role._id.toString() === said.toString())
-      ));
+    const [users, total] = await Promise.all([
+      this.userModel
+        .find(finalCriteria)
+        .select('-password')
+        .populate('roles')
+        .skip(skip)
+        .limit(limit)
+        .exec(),
+      this.userModel.countDocuments(finalCriteria)
+    ]);
+
+    return {
+      data: users,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    };
   }
 
   async getUserPermissions(userId: string): Promise<string[]> {
@@ -301,6 +196,7 @@ export class UserService {
           }
         });
       });
+      
       return permissions;
     });
 
@@ -310,61 +206,90 @@ export class UserService {
     return uniquePermissions;
   }
 
-  async createPasswordResetToken(email: string): Promise<void> {
-      const user = await this.userModel.findOne({ email });
-      if (!user) {
-        throw new HttpException('User not found', HttpStatus.NOT_FOUND);
-      }
-  
-      // Generate reset token
-      const resetToken = randomBytes(32).toString('hex');
-      const resetTokenExpiry = new Date(Date.now() + 3600000); // 1 hour from now
-  
-      // Save the reset token and expiry
-      user.resetPasswordToken = resetToken;
-      user.resetPasswordExpires = resetTokenExpiry;
-      await user.save();
-  
-      // Send reset email
-      await this.emailService.sendPasswordResetEmail(email, resetToken);
-    }
-  
-    async resetPassword(token: string, newPassword: string): Promise<void> {
-      const user = await this.userModel.findOne({
-        resetPasswordToken: token,
-        resetPasswordExpires: { $gt: Date.now() }
-      });
-  
-      if (!user) {
-        throw new HttpException(
-          'Invalid or expired password reset token',
-          HttpStatus.BAD_REQUEST
-        );
-      }
-  
-      // Hash the new password
-      const salt = await bcrypt.genSalt();
-      const hashedPassword = await bcrypt.hash(newPassword, salt);
-  
-      // Update user's password and clear reset token
-      user.password = hashedPassword;
-      user.resetPasswordToken = undefined;
-      user.resetPasswordExpires = undefined;
-      await user.save();
-    }
-
-    async updateEmailVerification(userId: string): Promise<void> {
-        const user = await this.userModel.findById(userId);
-        if (!user) {
-          throw new HttpException('User not found', HttpStatus.NOT_FOUND);
-        }
+  async findWithPipeline(pipeline: any[], page = 1, limit = 10) {
+    const skip = (page - 1) * limit;
     
-        user.isEmailVerified = true;
-        await user.save();
-      }
+    // Add pagination to pipeline
+    const paginatedPipeline = [
+      ...pipeline,
+      { $skip: skip },
+      { $limit: limit }
+    ];
 
-    async generateToken(userId: string): Promise<string> {
-        // Use your JWT service to generate token
-        return this.jwtService.sign({ sub: userId });
+    // Execute the aggregation
+    const [results, countResult] = await Promise.all([
+      this.userModel.aggregate(paginatedPipeline),
+      this.userModel.aggregate([
+        ...pipeline,
+        { $count: 'total' }
+      ])
+    ]);
+
+    const total = countResult[0]?.total || 0;
+
+    return {
+      data: results,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
       }
+    };
+  }
+
+
+  
+
+  // Move these methods inside the class
+  async findByEmail(email: string): Promise<any> {
+    // Don't search for null or empty emails
+    if (!email) {
+      return null;
+    }
+    return this.userModel.findOne({ 'profile.email': email }).exec();
+  }
+
+  async verifyEmail(token: string): Promise<User> {
+    if (!token) {
+      throw new HttpException('Verification token is required', HttpStatus.BAD_REQUEST);
+    }
+    
+    console.log('Attempting to verify email with token:', token);
+    
+    // Find user with this token to check if it exists
+    const userWithToken = await this.userModel.findOne({ verificationToken: token });
+    if (!userWithToken) {
+      console.log('No user found with this verification token');
+      throw new HttpException(
+        'Invalid verification token', 
+        HttpStatus.BAD_REQUEST
+      );
+    }
+    
+    console.log('Found user with token:', userWithToken.profile?.email || userWithToken.username);
+    
+    // Find and update user by verification token in one operation
+    const user = await this.userModel.findOneAndUpdate(
+      { verificationToken: token, isEmailVerified: false },
+      { 
+        $set: { 
+          isEmailVerified: true,
+          emailVerifiedAt: new Date()
+        },
+        $unset: { verificationToken: 1 }
+      },
+      { new: true }
+    );
+    
+    if (!user) {
+      throw new HttpException(
+        'Invalid verification token or email already verified', 
+        HttpStatus.BAD_REQUEST
+      );
+    }
+    
+    console.log('Email verified successfully for user:', user.profile?.email || user.username);
+    return user;
+  }
 }

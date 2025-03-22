@@ -48,11 +48,10 @@ export class RoleInitService implements OnModuleInit {
         const adminUser = new this.userModel({
           username: 'admin',
           password: hashedPassword,
-          // Add these required fields
-          firstname: 'Super',
-          lastname: 'Admin',
-          email: 'admin@admin.com',
-          // role: adminRole._id,
+          // Remove these fields as they're not in the schema
+          // firstname: 'Super',
+          // lastname: 'Admin',
+          // email: 'admin@admin.com',
           roles: [adminRole._id as string],
           profile: {
             firstName: 'Super',
@@ -60,7 +59,8 @@ export class RoleInitService implements OnModuleInit {
             email: 'admin@admin.com',
             phoneNumber: '1234567890',
           },
-          isEmailVerified: true,
+          isEmailVerified: true, // This is already set correctly
+          emailVerifiedAt: new Date() // Add this to record when it was verified
         });
         await adminUser.save();
       }

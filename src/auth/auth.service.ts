@@ -1,55 +1,74 @@
 
 // auth.service.ts
-import { Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
-// import { InjectModel } from '@nestjs/mongoose';
-import { Model,Types } from 'mongoose';
-// import { Role } from '../role/role.model';
+import { Injectable, UnauthorizedException, HttpException, HttpStatus } from '@nestjs/common';
+import { Model, Types } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from '../users/users.service';
 import { RoleService } from '../role/role.service';
 import { ConfigService } from '@nestjs/config';
-
+import { EmailService } from '../email/email.service';
 import * as bcrypt from 'bcryptjs';
 import { CreateUserDto } from '../users/dto/create-user.dto';
-
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class AuthService {
   private readonly allowedOrigins: string[];
   private readonly disallowedRoutes: RegExp[];
 
-  // In your constructor, make sure you have UserService injected
   constructor(
     private readonly roleService: RoleService,
     private readonly userService: UserService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly emailService: EmailService,
   ) {
-          
-     // Get values from YAML config
-     this.allowedOrigins = this.configService.get<string[]>('security.allowedOrigins') || [];
-     this.disallowedRoutes = (this.configService.get<string[]>('security.disallowedRoutes') || [])
-       .map(route => new RegExp(route));
+    // Get values from YAML config
+    this.allowedOrigins = this.configService.get<string[]>('security.allowedOrigins') || [];
+    this.disallowedRoutes = (this.configService.get<string[]>('security.disallowedRoutes') || [])
+      .map(route => new RegExp(route));
   }
 
   // Local authentication validation
-  async validateUser(username: string, pass: string): Promise<any> {
+  async validateUser(username: string, password: string): Promise<any> {
+    console.log('Validating user:', username);
+    
     const user = await this.userService.findByUsername(username);
-    if (user && bcrypt.compareSync(pass, user.password)) {
-      const { password, ...result } = user.toObject();
-      return result;
+    if (!user) {
+      console.log('User not found:', username);
+      return null;
     }
-    return null;
+    
+    // Check if the user has a verified email
+    if (!user.isEmailVerified) {
+      console.log('Email not verified for user:', username);
+      throw new UnauthorizedException('Email not verified. Please verify your email before logging in.');
+    }
+    
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      console.log('Invalid password for user:', username);
+      return null;
+    }
+    
+    console.log('User validated successfully:', username);
+    const { password: pwd, ...result } = user.toObject();
+    return result;
   }
 
   // LDAP authentication validation
   async validateLdapUser(ldapUser: any): Promise<any> {
-    try{
+    try {
       console.log('LDAP validation called with', ldapUser);
       const existingUser = await this.userService.findByUsername(ldapUser.username);
       if (existingUser) {
+        // Check if the user has a verified email
+        if (!existingUser.isEmailVerified) {
+          throw new HttpException('Email not verified. Please verify your email before logging in.', HttpStatus.UNAUTHORIZED);
+        }
         return existingUser; // Return existing user if already saved
       }
+      
       console.log('New LDAP user registration:', ldapUser);
 
       const customerRole = await this.roleService.findByName('customer');
@@ -57,9 +76,7 @@ export class AuthService {
       const createUserDto: CreateUserDto = {
         username: ldapUser.username,
         password: 'ldap_authenticated', // You can use a constant password or special indicator for LDAP users
-        firstname: ldapUser.firstName || '', // Required field in User model
-        lastname: ldapUser.lastName || '',   // Required field in User model
-        email: ldapUser.email || '', // Required field in User model
+        // role: customerRole._id as Types.ObjectId, // Assign a default role
         roles: [customerRole._id as string],
         profile: {
           firstName: ldapUser.firstName || '',
@@ -71,8 +88,15 @@ export class AuthService {
 
       const newUser = await this.register(createUserDto);
       return newUser;
-    }catch(error){
+    } catch (error) {
       console.error('Error in LDAP validation:', error);
+      if (error instanceof HttpException) {
+        throw error; // Rethrow HTTP exceptions
+      }
+      // Check if it's a connection error
+      if (error.code === 'ECONNREFUSED') {
+        throw new UnauthorizedException('LDAP server unavailable. Please try local authentication.');
+      }
       throw new UnauthorizedException('LDAP Authentication failed');
     }
   }
@@ -127,7 +151,86 @@ export class AuthService {
   }
 
   async register(createUserDto: CreateUserDto): Promise<any> {
-    return this.userService.create(createUserDto);
+    try {
+      // Check if user already exists
+      const existingUser = await this.userService.findByUsername(createUserDto.username);
+      if (existingUser) {
+        throw new HttpException('Username already exists', HttpStatus.BAD_REQUEST);
+      }
+
+      // Validate email is not empty
+      // Check if email is provided and not empty
+      if (!createUserDto.profile?.email) {
+        throw new HttpException('Email is required', HttpStatus.BAD_REQUEST);
+      }
+      
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(createUserDto.profile.email)) {
+        throw new HttpException('Invalid email format', HttpStatus.BAD_REQUEST);
+      }
+
+      // Check if email already exists
+      const existingEmail = await this.userService.findByEmail(createUserDto.profile.email);
+      if (existingEmail) {
+        throw new HttpException('Email already in use', HttpStatus.BAD_REQUEST);
+      }
+
+      // Generate verification token
+      const verificationToken = randomBytes(32).toString('hex');
+
+      // Hash password
+      const salt = await bcrypt.genSalt();
+      const hashedPassword = await bcrypt.hash(createUserDto.password, salt);
+
+      // Find customer role
+      const customerRole = await this.roleService.findByName('customer');
+      if (!customerRole) {
+        throw new HttpException('Customer role not found', HttpStatus.INTERNAL_SERVER_ERROR);
+      }
+
+      // Create user with verification token
+      const user = await this.userService.create({
+        ...createUserDto,
+        password: hashedPassword,
+        roles: [customerRole._id.toString()],
+        isEmailVerified: false,
+        verificationToken
+      } as any); // Use type assertion to bypass TypeScript checking
+
+      // Send verification email
+      await this.emailService.sendConfirmationEmail(
+        createUserDto.profile.email,
+        verificationToken
+      );
+
+      // Return user without sensitive information
+      const userObj = user.toObject ? user.toObject() : user;
+      const { password: pwd, verificationToken: token, ...result } = userObj;
+      return result;
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw new HttpException(
+        error.message || 'Error registering user',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
+  }
+
+  async verifyEmail(token: string): Promise<any> {
+    if (!token) {
+      throw new HttpException('Verification token is required', HttpStatus.BAD_REQUEST);
+    }
+    
+    try {
+      return this.userService.verifyEmail(token);
+    } catch (error) {
+      console.error('Email verification error:', error);
+      throw new HttpException(
+        error.message || 'Error verifying email',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR
+      );
+    }
   }
 
   async isValidRoute(returnUrl: string, origin: string): Promise<boolean> {
@@ -172,9 +275,12 @@ export class AuthService {
     }
   }
 
-  // Add this method to your auth service
-  async verifyEmail(token: string): Promise<any> {
-    return this.userService.verifyEmail(token);
+  async androidAppVersion():Promise<string>{
+    return this.configService.get<string>('androidAppVersion') || "";
+  }
+
+  async iosAppVersion():Promise<string>{
+    return this.configService.get<string>('iosAppVersion') || "";
   }
 
   private isValidOrigin(origin: string): boolean {
@@ -184,12 +290,4 @@ export class AuthService {
     return this.allowedOrigins.includes(origin);
   }
 
-  async forgotPassword(email: string): Promise<void> {
-      await this.userService.createPasswordResetToken(email);
-    }
-  
-    async resetPassword(token: string, newPassword: string): Promise<void> {
-      await this.userService.resetPassword(token, newPassword);
-    }
 }
-

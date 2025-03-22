@@ -1,17 +1,60 @@
 import { Controller, Get, Post, Body, UseGuards, Request, Query, Headers, Res, HttpException, HttpStatus } from '@nestjs/common';
-import { Response } from 'express';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './local-auth.guard';
 import { LdapAuthGuard } from '../auth/ldap.guard';
 import { JwtAuthGuard } from '../authjwt/jwt-auth.guard';
-import { Public } from '../decorators/public.decorator'; // Add this import
+import { Response } from 'express';
+import { Public } from '../helper/public.decorator';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  // Add this endpoint to your auth controller
+  @Get('mobAppVersion')
+  async mobAppVersion(@Query('os') os: string,) {
+    if(os=='android'){
+      return this.authService.androidAppVersion();
+    }
+    else{
+      return this.authService.iosAppVersion();
+    }     
+  }
+  
+  @Post('login/local')
+  @UseGuards(LocalAuthGuard)
+  async loginLocal(@Request() req) {
+    return this.authService.login(req.user);
+  }
+
+  @Post('login/ldap')
+  @UseGuards(LdapAuthGuard)
+  async loginLdap(@Request() req){
+    const ldapUser = req.user;
+    const user = await this.authService.validateLdapUser(ldapUser);
+    return this.authService.login(user);
+  }
+
+  @Get('validate-route')
+  async validateRoute(
+    @Query('returnUrl') returnUrl: string,
+    @Headers('origin') origin: string,
+  ) {
+    const isValid = await this.authService.isValidRoute(returnUrl, origin);
+    return { isValid, safeUrl: isValid ? returnUrl : '/' };
+  }
+
+  @Post('refresh')
+  async refresh(@Body() body: { refresh_token: string }) {
+    return this.authService.refreshToken(body.refresh_token);
+  }
+
+  @Post('register')
+  async register(@Body() createUserDto: any) {
+    return this.authService.register(createUserDto);
+  }
+
   @Get('verify-email')
+  @Public()
   async verifyEmail(
     @Query('token') token: string,
     @Res() res: Response
@@ -64,66 +107,10 @@ export class AuthController {
       `);
     }
   }
-  @Post('login')
-  @UseGuards(LocalAuthGuard)
-  async login(@Request() req) {
-    return this.authService.login(req.user);
-  }
-
-  @Post('login/ldap')
-  @UseGuards(LdapAuthGuard)
-  async loginLdap(@Request() req){
-    const ldapUser = req.user;
-    const user = await this.authService.validateLdapUser(ldapUser);
-    return this.authService.login(user);
-  }
-
-  @Get('validate-route')
-  async validateRoute(
-    @Query('returnUrl') returnUrl: string,
-    @Headers('origin') origin: string,
-  ) {
-    const isValid = await this.authService.isValidRoute(returnUrl, origin);
-    return { isValid, safeUrl: isValid ? returnUrl : '/' };
-  }
-
-  @Post('refresh')
-  async refresh(@Body() body: { refresh_token: string }) {
-    return this.authService.refreshToken(body.refresh_token);
-  }
-
-  @Post('register')
-  async register(@Body() createUserDto: any) {
-    return this.authService.register(createUserDto);
-  }
 
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   logout(@Request() req) {
     return { message: 'Logged out successfully' };
-  }
-
-  @Post('forgot-password')
-  @Public()
-  async forgotPassword(@Body() body: { email: string }) {
-    try {
-      await this.authService.forgotPassword(body.email);
-      return { message: 'Password reset email sent successfully' };
-    } catch (error) {
-      throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
-    }
-  }
-
-  @Post('reset-password')
-  @Public()
-  async resetPassword(
-    @Body() body: { token: string; newPassword: string }
-  ) {
-    try {
-      await this.authService.resetPassword(body.token, body.newPassword);
-      return { message: 'Password reset successfully' };
-    } catch (error) {
-      throw new HttpException(error.message, HttpStatus.BAD_REQUEST);
-    }
   }
 }

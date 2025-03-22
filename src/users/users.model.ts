@@ -11,30 +11,19 @@ export class User extends Document {
   @Prop({ required: true })
   password: string;
 
-  @Prop({ required: true })
-  firstname: string;
-
-  @Prop({ required: true })
-  lastname: string;
-
-  @Prop({ required: true, unique: true })
-  email: string;
-
   @Prop({ type: [Types.ObjectId], ref: 'Role' })
-  roles: Role[] | null;
+  roles:Role[]|null;
 
   @Prop({ default: Date.now })
   createdAt: Date;
 
-  @Prop({
-    type: {
-      firstName: String,
-      lastName: String,
-      email: String,
-      phoneNumber: String
-    }
-  })
-  profile: Profile;
+  @Prop({ type: Object, required: true }) 
+  profile: {
+    firstName: string;
+    lastName: string;
+    email: string; // Make sure this is validated
+    phoneNumber: string;
+  };
 
   @Prop({ default: false })
   isEmailVerified: boolean;
@@ -44,12 +33,6 @@ export class User extends Document {
 
   @Prop()
   verificationToken: string;
-
-  //future update
-  // isEnabled: boolean;
-  // isLocked: boolean;
-  resetPasswordToken: string;
-  resetPasswordExpires: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
