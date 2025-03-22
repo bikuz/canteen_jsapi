@@ -21,12 +21,19 @@ export class User extends Document {
   email: string;
 
   @Prop({ type: [Types.ObjectId], ref: 'Role' })
-  roles:Role[]|null;
+  roles: Role[] | null;
 
   @Prop({ default: Date.now })
   createdAt: Date;
 
-  @Prop({ type: Object }) // Define the profile as an embedded object with a type
+  @Prop({
+    type: {
+      firstName: String,
+      lastName: String,
+      email: String,
+      phoneNumber: String
+    }
+  })
   profile: Profile;
 
   @Prop({ default: false })
@@ -35,7 +42,6 @@ export class User extends Document {
   @Prop()
   emailVerifiedAt: Date;
 
-  // Change from verificationCode to verificationToken for consistency
   @Prop()
   verificationToken: string;
 

@@ -18,6 +18,7 @@ export class AuthService {
   private readonly allowedOrigins: string[];
   private readonly disallowedRoutes: RegExp[];
 
+  // In your constructor, make sure you have UserService injected
   constructor(
     private readonly roleService: RoleService,
     private readonly userService: UserService,
@@ -54,12 +55,11 @@ export class AuthService {
       const customerRole = await this.roleService.findByName('customer');
       // Register new user if they don't exist 
       const createUserDto: CreateUserDto = {
-        firstname: ldapUser.firstName,
-        lastname:ldapUser.lastName,
-        email:ldapUser.email,
         username: ldapUser.username,
         password: 'ldap_authenticated', // You can use a constant password or special indicator for LDAP users
-        // role: customerRole._id as Types.ObjectId, // Assign a default role
+        firstname: ldapUser.firstName || '', // Required field in User model
+        lastname: ldapUser.lastName || '',   // Required field in User model
+        email: ldapUser.email || '', // Required field in User model
         roles: [customerRole._id as string],
         profile: {
           firstName: ldapUser.firstName || '',
@@ -172,50 +172,10 @@ export class AuthService {
     }
   }
 
-  // async verifyEmail(token: string): Promise<void> {
-  //   if (!token) {
-  //     throw new UnauthorizedException('Token is required');
-  //   }
-  
-  //   try {
-  //     // Verify and decode the JWT token
-  //     const payload = this.jwtService.verify(token);
-      
-  //     // Extract user info from the token payload
-  //     const { userId, email } = payload;
-      
-  //     // Find the user in the database using the UserService
-  //     const user = await this.userService.findOne(userId);
-      
-  //     if (!user) {
-  //       throw new NotFoundException('User not found');
-  //     }
-      
-  //     // Check if the email in the token matches the user's email
-  //     if (user.email !== email) {
-  //       throw new UnauthorizedException('Invalid token');
-  //     }
-      
-  //     // Check if the user's email is already verified
-  //     if (user.isEmailVerified) {
-  //       return; // Email already verified, no action needed
-  //     }
-      
-  //     // Update the user's email verification status
-  //     // You'll need to add a method to UserService to update email verification
-  //     await this.userService.verifyEmail(userId);
-      
-  //   } catch (error) {
-  //     if (error.name === 'TokenExpiredError') {
-  //       throw new UnauthorizedException('Email verification token has expired');
-  //     }
-  //     if (error.name === 'JsonWebTokenError') {
-  //       throw new UnauthorizedException('Invalid email verification token');
-  //     }
-  //     // Re-throw other errors
-  //     throw error;
-  //   }
-  // }
+  // Add this method to your auth service
+  async verifyEmail(token: string): Promise<any> {
+    return this.userService.verifyEmail(token);
+  }
 
   private isValidOrigin(origin: string): boolean {
     if (!origin) {

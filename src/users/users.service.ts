@@ -22,6 +22,15 @@ export class UserService {
   async create(createUserDto: CreateUserDto): Promise<User> {    
     const salt = await bcrypt.genSalt();
     const hashedPassword = await bcrypt.hash(createUserDto.password, salt);
+    
+    // If roles aren't provided, assign customer role by default
+    if (!createUserDto.roles || createUserDto.roles.length === 0) {
+      const customerRole = await this.roleModel.findOne({ name: 'customer' });
+      if (customerRole) {
+        createUserDto.roles = [customerRole._id as string];
+      }
+    }
+    
     const createdUser = new this.userModel({
       ...createUserDto,
       password: hashedPassword,
@@ -31,6 +40,7 @@ export class UserService {
 
   async createUser(createUserDto: CreateUserDto): Promise<User> {
     try {
+      // const { email, password, username, firstname, lastname, profile } = createUserDto;
       const { email, password, username, firstname, lastname, profile } = createUserDto;
       const { phoneNumber } = profile;
       
@@ -104,22 +114,50 @@ export class UserService {
     }
   }
   
-  // In users.service.ts
   async verifyEmail(token: string): Promise<User> {
-    // Find user by verification token
-    const user = await this.userModel.findOne({ verificationToken: token });
-    if (!user) {
-      throw new HttpException('Invalid verification token', HttpStatus.BAD_REQUEST);
+    if (!token) {
+      throw new HttpException('Verification token is required', HttpStatus.BAD_REQUEST);
     }
-
-    // Update user's email verification status
-    user.isEmailVerified = true;
-    user.verificationToken = undefined; // Clear the verification token
-    await user.save();
-
+    
+    console.log('Attempting to verify email with token:', token);
+    
+    // Find user with this token to check if it exists
+    const userWithToken = await this.userModel.findOne({ verificationToken: token });
+    if (!userWithToken) {
+      console.log('No user found with this verification token');
+      throw new HttpException(
+        'Invalid verification token', 
+        HttpStatus.BAD_REQUEST
+      );
+    }
+    
+    console.log('Found user with token:', userWithToken.email);
+    
+    // Find and update user by verification token in one operation
+    const user = await this.userModel.findOneAndUpdate(
+      { verificationToken: token, isEmailVerified: false },
+      { 
+        $set: { 
+          isEmailVerified: true,
+          emailVerifiedAt: new Date()
+        },
+        $unset: { verificationToken: 1 }
+      },
+      { new: true }
+    );
+    
+    if (!user) {
+      throw new HttpException(
+        'Invalid verification token or email already verified', 
+        HttpStatus.BAD_REQUEST
+      );
+    }
+    
+    console.log('Email verified successfully for user:', user.email);
     return user;
   }
-
+  
+  // Remove the generateToken method as it's no longer needed
   async findAll():Promise<FlattenMaps<User>[]> {
     return this.userModel.find()
       .select('-password')

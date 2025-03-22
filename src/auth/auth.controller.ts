@@ -10,15 +10,60 @@ import { Public } from '../decorators/public.decorator'; // Add this import
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  // @Get('confirm-email')
-  // async confirmEmail(@Query('token') token: string, @Res() res: Response) {
-  //   try {
-  //     await this.authService.verifyEmail(token);
-  //     return res.status(200).json({ message: 'Email successfully verified!' });
-  //   } catch (error) {
-  //     throw new HttpException('Invalid or expired token', HttpStatus.BAD_REQUEST);
-  //   }
-  // }
+  // Add this endpoint to your auth controller
+  @Get('verify-email')
+  async verifyEmail(
+    @Query('token') token: string,
+    @Res() res: Response
+  ) {
+    try {
+      if (!token) {
+        throw new HttpException('Verification token is required', HttpStatus.BAD_REQUEST);
+      }
+      
+      const result = await this.authService.verifyEmail(token);
+      
+      // Return success page
+      return res.send(`
+        <html>
+          <head>
+            <title>Email Verification</title>
+            <style>
+              body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+              .success { color: green; font-size: 24px; margin-bottom: 20px; }
+              .message { margin: 20px 0; }
+              .app-link { display: inline-block; background-color: #007bff; color: white; 
+                          padding: 10px 20px; text-decoration: none; border-radius: 5px; 
+                          margin: 20px 0; }
+            </style>
+          </head>
+          <body>
+            <div class="success">✓ Email Verified Successfully</div>
+            <p class="message">Your email has been verified. You can now use all features of the app.</p>
+            <a href="icanteen://login" class="app-link">Open App</a>
+          </body>
+        </html>
+      `);
+    } catch (error) {
+      // Return an error page
+      return res.status(HttpStatus.BAD_REQUEST).send(`
+        <html>
+          <head>
+            <title>Verification Failed</title>
+            <style>
+              body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+              .error { color: red; font-size: 24px; margin-bottom: 20px; }
+              .message { margin: 20px 0; }
+            </style>
+          </head>
+          <body>
+            <div class="error">✗ Verification Failed</div>
+            <p class="message">${error.message}</p>
+          </body>
+        </html>
+      `);
+    }
+  }
   @Post('login')
   @UseGuards(LocalAuthGuard)
   async login(@Request() req) {

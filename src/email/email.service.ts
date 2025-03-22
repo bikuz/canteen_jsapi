@@ -1,4 +1,4 @@
-import { Injectable, Res } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 
@@ -18,11 +18,9 @@ export class EmailService {
     });
   }
 
-  // Remove these decorators - they don't belong in a service
-  // @Public()
-  // @Res()
   async sendConfirmationEmail(email: string, token: string) {
-    const confirmUrl = `http://localhost:3000/users/verify-email?token=${token}`;
+    const confirmUrl = `${this.configService.get('APP_URL', 'http://localhost:3000')}/auth/verify-email?token=${token}`;
+    
     const mailOptions = {
       from: this.configService.get('MAIL_FROM'),
       to: email,
