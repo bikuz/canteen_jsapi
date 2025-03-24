@@ -23,7 +23,7 @@ export class UserService {
     });
     return createdUser.save();
   }
-
+  
   
   async findAll(searchCriteria = {}, page = 1, limit = 10) {
     const skip = (page - 1) * limit;
@@ -248,6 +248,11 @@ export class UserService {
       return null;
     }
     return this.userModel.findOne({ 'profile.email': email }).exec();
+  }
+  
+  async findByResetToken(token: string): Promise<any> {
+    console.log('Finding user by reset token');
+    return this.userModel.findOne({ resetPasswordToken: token }).exec();
   }
 
   async verifyEmail(token: string): Promise<User> {

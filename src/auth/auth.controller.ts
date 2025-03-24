@@ -5,6 +5,8 @@ import { LdapAuthGuard } from '../auth/ldap.guard';
 import { JwtAuthGuard } from '../authjwt/jwt-auth.guard';
 import { Response } from 'express';
 import { Public } from '../helper/public.decorator';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 
 @Controller('auth')
 export class AuthController {
@@ -112,5 +114,133 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   logout(@Request() req) {
     return { message: 'Logged out successfully' };
+  }
+  
+  @Post('forgot-password')
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto): Promise<any> {
+    console.log('Received forgot password request');
+    return this.authService.forgotPassword(forgotPasswordDto.email);
+  }
+  
+  @Get('reset-password')
+  @Public()
+  async resetPasswordPage(
+    @Query('token') token: string,
+    @Res() res: Response
+  ) {
+    try {
+      if (!token) {
+        throw new HttpException('Reset token is required', HttpStatus.BAD_REQUEST);
+      }
+      
+      // Verify token exists and is valid
+      const user = await this.authService.findUserByResetToken(token);
+      
+      // Return reset password page
+      return res.send(`
+        <html>
+          <head>
+            <title>Reset Password</title>
+            <style>
+              body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+              .title { font-size: 24px; margin-bottom: 20px; }
+              .form-group { margin-bottom: 15px; }
+              input { padding: 10px; width: 300px; border-radius: 5px; border: 1px solid #ddd; }
+              button { background-color: #007bff; color: white; border: none; padding: 10px 20px; 
+                      border-radius: 5px; cursor: pointer; }
+              .error { color: red; display: none; margin-top: 10px; }
+              .success { color: green; display: none; margin-top: 10px; }
+            </style>
+          </head>
+          <body>
+            <div class="title">Reset Your Password</div>
+            <div id="resetForm">
+              <div class="form-group">
+                <input type="password" id="password" placeholder="New Password" minlength="6" required>
+              </div>
+              <div class="form-group">
+                <input type="password" id="confirmPassword" placeholder="Confirm Password" required>
+              </div>
+              <button onclick="resetPassword()">Reset Password</button>
+              <div id="error" class="error"></div>
+              <div id="success" class="success"></div>
+            </div>
+            
+            <script>
+              async function resetPassword() {
+                const password = document.getElementById('password').value;
+                const confirmPassword = document.getElementById('confirmPassword').value;
+                const errorDiv = document.getElementById('error');
+                const successDiv = document.getElementById('success');
+                
+                errorDiv.style.display = 'none';
+                successDiv.style.display = 'none';
+                
+                if (!password || password.length < 6) {
+                  errorDiv.textContent = 'Password must be at least 6 characters';
+                  errorDiv.style.display = 'block';
+                  return;
+                }
+                
+                if (password !== confirmPassword) {
+                  errorDiv.textContent = 'Passwords do not match';
+                  errorDiv.style.display = 'block';
+                  return;
+                }
+                
+                try {
+                  const response = await fetch('/auth/reset-password', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                      token: '${token}',
+                      newPassword: password
+                    }),
+                  });
+                  
+                  const data = await response.json();
+                  
+                  if (response.ok) {
+                    document.getElementById('resetForm').innerHTML = '<div class="success">✓ Password Reset Successfully</div><p>Your password has been reset. You can now log in with your new password.</p><a href="icanteen://login" style="display: inline-block; background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin: 20px 0;">Open App</a>';
+                  } else {
+                    errorDiv.textContent = data.message || 'Failed to reset password';
+                    errorDiv.style.display = 'block';
+                  }
+                } catch (error) {
+                  errorDiv.textContent = 'An error occurred. Please try again.';
+                  errorDiv.style.display = 'block';
+                }
+              }
+            </script>
+          </body>
+        </html>
+      `);
+    } catch (error) {
+      // Return an error page
+      return res.status(HttpStatus.BAD_REQUEST).send(`
+        <html>
+          <head>
+            <title>Reset Password Failed</title>
+            <style>
+              body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+              .error { color: red; font-size: 24px; margin-bottom: 20px; }
+              .message { margin: 20px 0; }
+            </style>
+          </head>
+          <body>
+            <div class="error">✗ Reset Password Failed</div>
+            <p class="message">${error.message || 'Invalid or expired reset token'}</p>
+          </body>
+        </html>
+      `);
+    }
+  }
+  
+  @Post('reset-password')
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto): Promise<any> {
+    console.log('Received reset password request');
+    return this.authService.resetPassword(resetPasswordDto.token, resetPasswordDto.newPassword);
   }
 }

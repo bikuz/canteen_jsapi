@@ -27,7 +27,10 @@ export class CreateUserDto {
     email: string;
     phoneNumber: string;
   };
+
+  isEmailVerified?: boolean | null;
+
+  emailVerifiedAt: Date;
   
-  isEmailVerified?: boolean;
   verificationToken?: string;
 }
