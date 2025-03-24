@@ -45,15 +45,55 @@ export class AuthService {
       throw new UnauthorizedException('Email not verified. Please verify your email before logging in.');
     }
     
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
+    // Log the stored hash for debugging
+    console.log('Stored password hash:', user.password);
+    console.log('Provided password:', password);
+    console.log('Password length:', password.length);
+    
+    try {
+      // Use the standard bcrypt.compare method - this is the most reliable approach
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      console.log('Password comparison result:', isPasswordValid);
+      
+      if (isPasswordValid) {
+        console.log('User validated successfully:', username);
+        const { password: pwd, ...result } = user.toObject();
+        return result;
+      }
+      
+      // If standard comparison fails, try with trimmed password
+      const trimmedPassword = password.trim();
+      if (trimmedPassword !== password) {
+        console.log('Password had whitespace, trying with trimmed password');
+        const isPasswordValidTrimmed = await bcrypt.compare(trimmedPassword, user.password);
+        console.log('Trimmed password comparison result:', isPasswordValidTrimmed);
+        
+        if (isPasswordValidTrimmed) {
+          console.log('User validated successfully with trimmed password:', username);
+          const { password: pwd, ...result } = user.toObject();
+          return result;
+        }
+      }
+      
       console.log('Invalid password for user:', username);
       return null;
+    } catch (error) {
+      console.error('Error during password validation:', error);
+      
+      // If there's an error with the comparison, log it but don't expose details to the client
+      console.log('Attempting to rehash the password for debugging purposes');
+      try {
+        // For debugging only - generate a new hash with the same password
+        const salt = await bcrypt.genSalt(10);
+        const newHash = await bcrypt.hash(password, salt);
+        console.log('New hash generated for debugging:', newHash);
+        console.log('This should match the stored hash if the password is correct');
+      } catch (hashError) {
+        console.error('Error generating debug hash:', hashError);
+      }
+      
+      return null;
     }
-    
-    console.log('User validated successfully:', username);
-    const { password: pwd, ...result } = user.toObject();
-    return result;
   }
 
   // LDAP authentication validation
@@ -152,6 +192,8 @@ export class AuthService {
 
   async register(createUserDto: CreateUserDto): Promise<any> {
     try {
+      console.log('Registering user:', createUserDto.username);
+
       // Check if user already exists
       const existingUser = await this.userService.findByUsername(createUserDto.username);
       if (existingUser) {
@@ -159,7 +201,6 @@ export class AuthService {
       }
 
       // Validate email is not empty
-      // Check if email is provided and not empty
       if (!createUserDto.profile?.email) {
         throw new HttpException('Email is required', HttpStatus.BAD_REQUEST);
       }
@@ -179,24 +220,49 @@ export class AuthService {
       // Generate verification token
       const verificationToken = randomBytes(32).toString('hex');
 
-      // Hash password
-      const salt = await bcrypt.genSalt();
+      // Hash password with consistent salt rounds
+      const salt = await bcrypt.genSalt(10);
       const hashedPassword = await bcrypt.hash(createUserDto.password, salt);
+      console.log('Generated password hash:', hashedPassword);
 
       // Find customer role
       const customerRole = await this.roleService.findByName('customer');
       if (!customerRole) {
         throw new HttpException('Customer role not found', HttpStatus.INTERNAL_SERVER_ERROR);
       }
+      
+      console.log('Customer role found:', customerRole);
+      console.log('Customer role ID:', customerRole._id);
+
+      // Ensure roles is an array of valid ObjectId strings
+      let userRoles;
+      if (createUserDto.roles && createUserDto.roles.length > 0) {
+        // If roles are provided, ensure they are valid ObjectIds
+        userRoles = createUserDto.roles.map(role => {
+          // Check if the role is already an ObjectId string
+          if (Types.ObjectId.isValid(role)) {
+            return role;
+          }
+          // If it's a role name, try to find the role by name
+          return customerRole._id.toString(); // Fallback to customer role
+        });
+      } else {
+        // Default to customer role
+        userRoles = [customerRole._id.toString()];
+      }
+      
+      console.log('Assigned roles:', userRoles);
 
       // Create user with verification token
       const user = await this.userService.create({
         ...createUserDto,
         password: hashedPassword,
-        roles: [customerRole._id.toString()],
+        roles: userRoles,
         isEmailVerified: false,
         verificationToken
-      } as any); // Use type assertion to bypass TypeScript checking
+      });
+
+      console.log('User created successfully:', user.username);
 
       // Send verification email
       await this.emailService.sendConfirmationEmail(
@@ -215,7 +281,8 @@ export class AuthService {
         error.status || HttpStatus.INTERNAL_SERVER_ERROR
       );
     }
-  }
+}
+
 
   async verifyEmail(token: string): Promise<any> {
     if (!token) {

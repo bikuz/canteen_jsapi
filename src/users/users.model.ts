@@ -17,16 +17,11 @@ export class User extends Document {
   @Prop({ default: Date.now })
   createdAt: Date;
 
-  @Prop({ type: Object, required: true }) 
-  profile: {
-    firstName: string;
-    lastName: string;
-    email: string; // Make sure this is validated
-    phoneNumber: string;
-  };
+  @Prop({ type: Object}) 
+  profile: Profile;
 
-  @Prop({ default: false })
-  isEmailVerified: boolean;
+  @Prop({ default: false, type: Boolean, nullable: true })
+  isEmailVerified: boolean | null;
 
   @Prop()
   emailVerifiedAt: Date;

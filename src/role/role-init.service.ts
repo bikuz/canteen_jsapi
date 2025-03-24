@@ -17,6 +17,7 @@ export class RoleInitService implements OnModuleInit {
   async onModuleInit() {
     await this.createDefaultRoles();
     await this.createAdminUser();
+    await this.createDummyCustomer(); // Add this line to create a dummy customer on init
   }
 
   private async createDefaultRoles() {
@@ -63,6 +64,62 @@ export class RoleInitService implements OnModuleInit {
           emailVerifiedAt: new Date() // Add this to record when it was verified
         });
         await adminUser.save();
+      }
+    }
+  }
+
+  // Add a new method to create a dummy customer account
+  private async createDummyCustomer() {
+    const customerRole = await this.roleModel.findOne({ name: 'customer' });
+    if (customerRole) {
+      // Create regular customer
+      const customerExists = await this.userModel.findOne({ username: 'customer' });
+      if (!customerExists) {
+        const salt = await bcrypt.genSalt(10); // Use 10 rounds consistently
+        const hashedPassword = await bcrypt.hash('customer123', salt); // default password
+        console.log('Customer password hash:', hashedPassword);
+        
+        const customerUser = new this.userModel({
+          username: 'customer',
+          password: hashedPassword,
+          roles: [customerRole._id as string],
+          profile: {
+            firstName: 'Test',
+            lastName: 'Customer',
+            email: 'customer@example.com',
+            phoneNumber: '9876543210',
+          },
+          isEmailVerified: true, // Set as verified for testing
+          emailVerifiedAt: new Date()
+        });
+        await customerUser.save();
+        console.log('Dummy customer account created successfully');
+      }
+      
+      // Create a test user with a very simple password
+      const testUserExists = await this.userModel.findOne({ username: 'test' });
+      if (!testUserExists) {
+        const salt = await bcrypt.genSalt(10); // Use 10 rounds consistently
+        const simplePassword = '123456';
+        const hashedPassword = await bcrypt.hash(simplePassword, salt);
+        console.log('Test user simple password:', simplePassword);
+        console.log('Test user password hash:', hashedPassword);
+        
+        const testUser = new this.userModel({
+          username: 'test',
+          password: hashedPassword,
+          roles: [customerRole._id as string],
+          profile: {
+            firstName: 'Test',
+            lastName: 'User',
+            email: 'test@example.com',
+            phoneNumber: '5555555555',
+          },
+          isEmailVerified: true,
+          emailVerifiedAt: new Date()
+        });
+        await testUser.save();
+        console.log('Test user created with username: test, password: 123456');
       }
     }
   }
