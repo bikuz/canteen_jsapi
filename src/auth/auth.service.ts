@@ -123,8 +123,8 @@ export class AuthService {
           email: ldapUser.email || '',
           phoneNumber: ldapUser.phoneNumber || ''
         },
-        
-        emailVerifiedAt: undefined, 
+        isEmailVerified:true,
+        emailVerifiedAt: new Date(), 
       };
 
       const newUser = await this.register(createUserDto);

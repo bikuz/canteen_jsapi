@@ -17,7 +17,7 @@ export class LdapStrategy extends PassportStrategy(Strategy, 'ldap') {
         private authService: AuthService
     ) {
         // Get LDAP URL with a fallback value
-        const ldapUrl = configService.get<string>('LD_URL');
+        const ldapUrl = configService.get<string>('LDAP_URL');
         console.log('LDAP URL from config:', ldapUrl);
         
         super({
@@ -25,10 +25,10 @@ export class LdapStrategy extends PassportStrategy(Strategy, 'ldap') {
             passReqToCallback: true, // Pass the request to the callback
             server: {
               url: ldapUrl || 'ldap://localhost:389', // Provide a default URL
-              bindDN: configService.get<string>('LD_BIND_DN') || '',
-              bindCredentials: configService.get<string>('LD_BIND_CREDENTIALS') || '',
-              searchBase: configService.get<string>('LD_SEARCH_BASE') || 'ou=users,dc=example,dc=com',
-              searchFilter: configService.get<string>('LD_SEARCH_FILTER') || '(uid={{username}})',
+              bindDN: configService.get<string>('LDAP_BIND_DN') || '',
+              bindCredentials: configService.get<string>('LDAP_BIND_CREDENTIALS') || '',
+              searchBase: configService.get<string>('LDAP_SEARCH_BASE') || 'ou=users,dc=example,dc=com',
+              searchFilter: configService.get<string>('LDAP_SEARCH_FILTER') || '(uid={{username}})',
               searchAttributes: ['uid', 'cn', 'sn', 'mail', 'givenName', 'telephoneNumber'],
             },
         });

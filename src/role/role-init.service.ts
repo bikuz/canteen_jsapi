@@ -17,7 +17,7 @@ export class RoleInitService implements OnModuleInit {
   async onModuleInit() {
     await this.createDefaultRoles();
     await this.createAdminUser();
-    await this.createDummyCustomer(); // Add this line to create a dummy customer on init
+    // await this.createDummyCustomer(); // Add this line to create a dummy customer on init
   }
 
   private async createDefaultRoles() {
