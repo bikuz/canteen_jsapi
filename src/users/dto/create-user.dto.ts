@@ -20,8 +20,6 @@ export class CreateUserDto {
   @IsMongoId({ each: true })
   roles: string[]; // Assumes `Types.ObjectId` translates to string
 
-  
-
   @IsNotEmpty()
   profile: {
     firstName: string;
@@ -29,6 +27,10 @@ export class CreateUserDto {
     email: string;
     phoneNumber: string;
   };
+
+  isEmailVerified?: boolean | null;
+
+  emailVerifiedAt: Date;
+  
+  verificationToken?: string;
 }
-
-

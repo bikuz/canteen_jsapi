@@ -17,12 +17,23 @@ export class User extends Document {
   @Prop({ default: Date.now })
   createdAt: Date;
 
-  @Prop({ type: Object }) // Define the profile as an embedded object with a type
+  @Prop({ type: Object}) 
   profile: Profile;
 
-  //future update
-  // isEnabled: boolean;
-  // isLocked: boolean;
+  @Prop({ default: false, type: Boolean, nullable: true })
+  isEmailVerified: boolean | null;
+
+  @Prop()
+  emailVerifiedAt: Date;
+
+  @Prop()
+  verificationToken: string;
+
+  @Prop()
+  resetPasswordToken: string;
+
+  @Prop()
+  resetPasswordExpires: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

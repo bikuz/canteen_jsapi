@@ -23,7 +23,7 @@ export class UserService {
     });
     return createdUser.save();
   }
-
+  
   
   async findAll(searchCriteria = {}, page = 1, limit = 10) {
     const skip = (page - 1) * limit;
@@ -236,5 +236,65 @@ export class UserService {
         totalPages: Math.ceil(total / limit)
       }
     };
+  }
+
+
+  
+
+  // Move these methods inside the class
+  async findByEmail(email: string): Promise<any> {
+    // Don't search for null or empty emails
+    if (!email) {
+      return null;
+    }
+    return this.userModel.findOne({ 'profile.email': email }).exec();
+  }
+  
+  async findByResetToken(token: string): Promise<any> {
+    console.log('Finding user by reset token');
+    return this.userModel.findOne({ resetPasswordToken: token }).exec();
+  }
+
+  async verifyEmail(token: string): Promise<User> {
+    if (!token) {
+      throw new HttpException('Verification token is required', HttpStatus.BAD_REQUEST);
+    }
+    
+    console.log('Attempting to verify email with token:', token);
+    
+    // Find user with this token to check if it exists
+    const userWithToken = await this.userModel.findOne({ verificationToken: token });
+    if (!userWithToken) {
+      console.log('No user found with this verification token');
+      throw new HttpException(
+        'Invalid verification token', 
+        HttpStatus.BAD_REQUEST
+      );
+    }
+    
+    console.log('Found user with token:', userWithToken.profile?.email || userWithToken.username);
+    
+    // Find and update user by verification token in one operation
+    const user = await this.userModel.findOneAndUpdate(
+      { verificationToken: token, isEmailVerified: false },
+      { 
+        $set: { 
+          isEmailVerified: true,
+          emailVerifiedAt: new Date()
+        },
+        $unset: { verificationToken: 1 }
+      },
+      { new: true }
+    );
+    
+    if (!user) {
+      throw new HttpException(
+        'Invalid verification token or email already verified', 
+        HttpStatus.BAD_REQUEST
+      );
+    }
+    
+    console.log('Email verified successfully for user:', user.profile?.email || user.username);
+    return user;
   }
 }

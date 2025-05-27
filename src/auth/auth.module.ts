@@ -44,20 +44,25 @@ import { RoleSchema, Role } from '../role/role.model';
 import { AuthController } from './auth.controller';
 import { SharedModule } from '../authjwt/shared.module';
 import { LdapStrategy } from './ldap.strategy';
-
-
+import { MailerModule } from '@nestjs-modules/mailer';
+import { UserModule } from '../users/users.module';
 
 @Module({
   imports: [
-    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }, { name: Role.name, schema: RoleSchema }]),
+    MongooseModule.forFeature([
+      { name: User.name, schema: UserSchema }, 
+      { name: Role.name, schema: RoleSchema }
+    ]),
     PassportModule,
     // JwtModule.register({
     //   secret: 'your_jwt_secret',
     //   signOptions: { expiresIn: '60m' },
     // }),
     SharedModule,
+    MailerModule,
+    UserModule,
   ],
-  providers: [AuthService,  UserService, RoleService, LdapStrategy, LocalStrategy, JwtStrategy],
+  providers: [AuthService, UserService, RoleService, LdapStrategy, LocalStrategy, JwtStrategy],
   controllers: [AuthController],
   exports: [AuthService],
 })

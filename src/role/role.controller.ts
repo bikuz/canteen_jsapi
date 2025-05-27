@@ -75,6 +75,4 @@ export class RoleController {
     await this.rolesService.remove(id);
     return { success: true, message: 'Role successfully deleted' };
   }
-
-  
 }

@@ -75,7 +75,6 @@ export class OrdersController {
     }
   }
 
-  
   @Post('checkItems')
   @Roles('*')
   @ApiOperation({ summary: 'Check if food items are available' })
@@ -106,7 +105,6 @@ export class OrdersController {
       );
     }
   }
-
 
 
   @Get('history')
