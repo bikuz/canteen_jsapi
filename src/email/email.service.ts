@@ -19,7 +19,7 @@ export class EmailService {
   }
 
   async sendConfirmationEmail(email: string, token: string) {
-    const confirmUrl = `${this.configService.get('APP_URL', 'http://localhost:3000')}/auth/verify-email?token=${token}`;
+    const confirmUrl = `${this.configService.get('baseURL', 'http://localhost:3000')[0]}/auth/verify-email?token=${token}`;
     
     const mailOptions = {
       from: this.configService.get('MAIL_FROM'),
