@@ -166,7 +166,7 @@ export class CategoriesController {
         }),
         fileFilter: (req, file, callback) => {
             if (!file.mimetype.match(/\/(jpg|jpeg|png|webp)$/)) {
-              return callback(new HttpException('Only image (jpg,jpeg,png) files are allowed!', HttpStatus.BAD_REQUEST), false);
+              return callback(new HttpException('Only image (jpg,jpeg,png,webp) files are allowed!', HttpStatus.BAD_REQUEST), false);
             }
             callback(null, true);
           },
