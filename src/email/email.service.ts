@@ -19,7 +19,7 @@ export class EmailService {
   }
 
   async sendConfirmationEmail(email: string, token: string) {
-    const confirmUrl = `${this.configService.get('baseURL', 'http://localhost:3000')[0]}/auth/verify-email?token=${token}`;
+    const confirmUrl = `${this.configService.get('baseURL')[0]}/auth/verify-email?token=${token}`;
     
     const mailOptions = {
       from: this.configService.get('MAIL_FROM'),
@@ -57,7 +57,7 @@ export class EmailService {
   async sendPasswordResetEmail(to: string, token: string): Promise<void> {
     console.log('Preparing to send password reset email to:', to);
     
-    const resetUrl = `${this.configService.get<string>('APP_URL', 'http://localhost:3000')}/auth/reset-password?token=${token}`;
+    const resetUrl = `${this.configService.get('baseURL')[0]}/auth/reset-password?token=${token}`;
     console.log('Reset URL:', resetUrl);
     
     const mailOptions = {
