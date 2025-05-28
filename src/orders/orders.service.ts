@@ -129,4 +129,13 @@ export class OrdersService {
     }
     return deletedOrder;
   }
+
+  async hasPendingOrders(userId: string): Promise<boolean> {
+    const result = await this.orderModel.exists({
+      customer: userId,
+      status: { $in: ['created', 'processing'] }, // adjust if you use enums or different status strings
+    });
+    return !!result; // convert to true/false
+  }
+
 }

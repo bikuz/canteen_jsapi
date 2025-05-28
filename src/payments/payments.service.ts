@@ -164,4 +164,13 @@ export class PaymentsService {
     }
     return deletedPayment;
   }
+
+  async hasPendingPayments(userId: string): Promise<boolean> {
+    const result= await this.paymentModel.exists({
+      customer: userId,
+      status: 'pending',  
+    });
+
+    return !!result; // convert to true/false
+  }
 }

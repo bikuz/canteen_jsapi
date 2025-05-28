@@ -13,7 +13,7 @@ import { UserModule } from '../users/users.module';
       { name: PaymentCounter.name, schema: PaymentCounterSchema }
     ]),
     forwardRef(() => OrdersModule),
-    UserModule
+    forwardRef(() =>UserModule)
   ],
   providers: [PaymentsService],
   controllers: [PaymentsController],

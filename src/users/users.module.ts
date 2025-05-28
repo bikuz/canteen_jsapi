@@ -5,6 +5,8 @@ import { UserService } from './users.service';
 import { RoleModule } from '../role/role.module';
 import { UserController } from './users.controller';
 import { EmailService } from '../email/email.service';
+import { OrdersModule } from '../orders/orders.module';
+import { PaymentsModule } from '../payments/payments.module';
 import { JwtModule } from '@nestjs/jwt';
 
 @Module({
@@ -15,6 +17,8 @@ import { JwtModule } from '@nestjs/jwt';
       signOptions: { expiresIn: '60m' },
     }),
     forwardRef(() => RoleModule),
+    forwardRef(()=> OrdersModule),
+    forwardRef(()=> PaymentsModule),
   ],
   providers: [UserService, EmailService], // Added EmailService
   controllers: [UserController],

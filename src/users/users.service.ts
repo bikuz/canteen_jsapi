@@ -114,6 +114,29 @@ export class UserService {
     return deletedUser;
   }
 
+  async softDelete(userId: string): Promise<any> {
+    const user = await this.userModel.findById(userId);
+  
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+  
+    user.isDeleted = true;
+    user.deletedAt = new Date();
+  
+    // Optional anonymization
+    user.username = `deleted_user_${user._id}`;
+    user.profile =  {
+      firstName: 'deleted',
+      lastName: 'user',
+      email: 'user@deleted.com',
+      phoneNumber: '0000000000',
+    }
+    await user.save();
+  
+    return user;
+  }
+
   async findByUsername(username: string): Promise<User> {
     return this.userModel.findOne({ username })
     // .select('-password')

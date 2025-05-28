@@ -1,6 +1,9 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete,
   Req,UseGuards, HttpException, HttpStatus, Query } from '@nestjs/common';
 import { UserService } from './users.service';
+import { OrdersService } from '../orders/orders.service';
+import { PaymentsService } from '../payments/payments.service';
+
 import { CreateUserDto,UpdateUserDto } from './dto';
 
 import { Request } from 'express';
@@ -11,7 +14,10 @@ import { Roles } from '../helper/roles.decorator';
 @Controller('users')
 @UseGuards(JwtAuthGuard, DynamicRolesGuard)
 export class UserController {
- constructor(private readonly userService: UserService) {}
+ constructor(private readonly userService: UserService,
+  private readonly orderService: OrdersService,
+  private readonly paymentService: PaymentsService
+ ) {}
 
  @Get('permissions')
  @Roles('*')
@@ -139,8 +145,61 @@ export class UserController {
 
  @Delete(':id')
  async remove(@Param('id') id: string) {
-    const deletedUser =this.userService.remove(id);
+
+    if (await this.orderService.hasPendingOrders(id)) {
+      throw new HttpException(
+        'Cannot delete user with pending orders.',
+        HttpStatus.FORBIDDEN
+      )
+    }
+
+    if (await this.paymentService.hasPendingPayments(id)) {
+      throw new HttpException(
+        'Cannot delete user with pending payments.',
+        HttpStatus.FORBIDDEN
+      )
+    }
+
+    // const deletedUser =this.userService.remove(id);
+    const deletedUser = await this.userService.softDelete(id);
     // const a = (await deletedUser).username
     return deletedUser;
  }
+
+ @Delete('me')
+ @Roles('*')
+ async removeSelf(@Req() request: Request) {
+   const user = request.user as any; // Adjust type if using a custom user type
+ 
+   if (!user || !user._id) {
+     throw new HttpException(
+      'User not authenticated',
+      HttpStatus.UNAUTHORIZED
+    );
+   }
+ 
+   const userId = user._id;
+ 
+   if (await this.orderService.hasPendingOrders(userId)) {
+     throw new HttpException(
+       'Cannot delete user with pending orders.',
+       HttpStatus.FORBIDDEN
+     );
+   }
+ 
+   if (await this.paymentService.hasPendingPayments(userId)) {
+     throw new HttpException(
+       'Cannot delete user with pending payments.',
+       HttpStatus.FORBIDDEN
+     );
+   }
+ 
+   const deletedUser = await this.userService.softDelete(userId);
+   
+   return {
+    success: true,
+    message: 'Your account has been successfully deleted.',
+  };
+ }
+ 
 }

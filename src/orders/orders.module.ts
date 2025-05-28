@@ -14,7 +14,7 @@ import { UserModule } from '../users/users.module';
   OrderTimeFrameModule,
   FoodItemsModule,
   forwardRef(() => PaymentsModule),
-  UserModule
+  forwardRef(() =>UserModule)
 ],
   controllers: [OrdersController],
   providers: [OrdersService],
