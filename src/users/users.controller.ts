@@ -73,6 +73,43 @@ export class UserController {
    return this.findAll(req, query);
  }
 
+ 
+ @Delete('me')
+ @Roles('*')
+ async removeSelf(@Req() request: Request) {
+   const user = request.user as any; // Adjust type if using a custom user type
+ 
+   if (!user || !user._id) {
+     throw new HttpException(
+      'User not authenticated',
+      HttpStatus.UNAUTHORIZED
+    );
+   }
+ 
+   const userId = user._id;
+ 
+   if (await this.orderService.hasPendingOrders(userId)) {
+     throw new HttpException(
+       'Cannot delete user with pending orders.',
+       HttpStatus.FORBIDDEN
+     );
+   }
+ 
+   if (await this.paymentService.hasPendingPayments(userId)) {
+     throw new HttpException(
+       'Cannot delete user with pending payments.',
+       HttpStatus.FORBIDDEN
+     );
+   }
+ 
+   const deletedUser = await this.userService.softDelete(userId);
+   
+   return {
+    success: true,
+    message: 'Your account has been successfully deleted.',
+  };
+ }
+ 
  @Post()
  async create(@Body() createUserDto: CreateUserDto) {
    return this.userService.create(createUserDto);
@@ -166,40 +203,5 @@ export class UserController {
     return deletedUser;
  }
 
- @Delete('me')
- @Roles('*')
- async removeSelf(@Req() request: Request) {
-   const user = request.user as any; // Adjust type if using a custom user type
- 
-   if (!user || !user._id) {
-     throw new HttpException(
-      'User not authenticated',
-      HttpStatus.UNAUTHORIZED
-    );
-   }
- 
-   const userId = user._id;
- 
-   if (await this.orderService.hasPendingOrders(userId)) {
-     throw new HttpException(
-       'Cannot delete user with pending orders.',
-       HttpStatus.FORBIDDEN
-     );
-   }
- 
-   if (await this.paymentService.hasPendingPayments(userId)) {
-     throw new HttpException(
-       'Cannot delete user with pending payments.',
-       HttpStatus.FORBIDDEN
-     );
-   }
- 
-   const deletedUser = await this.userService.softDelete(userId);
-   
-   return {
-    success: true,
-    message: 'Your account has been successfully deleted.',
-  };
- }
  
 }
