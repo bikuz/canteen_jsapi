@@ -57,7 +57,7 @@ export class FooditemsController {
             fooditems.map(async (_item) => {
    
             const isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', _item.category.toString());
-            const ordertimeframe_food= await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
+            const ordertimeframe_food= await this.orderTimeFrameService.findOrderTimeframe('fooditem', _item._id.toString());
             const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
             const isOrderingAllowed = isOrderingAllowed_cat && isOrderingAllowed_food;
 
