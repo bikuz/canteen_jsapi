@@ -329,7 +329,10 @@ async findByPage(
         menu.foodItems.forEach(foodItem => {
           if (foodItem.image) {
             // Prepend baseUrl to food item's image URL
-            foodItem.image = `${baseUrl}/${foodItem.image}`;
+            if (!foodItem.image.startsWith(baseUrl)) {
+              foodItem.image = `${baseUrl}/${foodItem.image}`;
+              // console.log(foodItem.image);
+            }
           }
         });
       }
