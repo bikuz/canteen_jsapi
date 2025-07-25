@@ -138,8 +138,24 @@ export class UserService {
   }
 
   async findByUsername(username: string): Promise<User> {
-    return this.userModel.findOne({ username })
+    const caseInsensitiveIdentifier = new RegExp(`^${username}$`, 'i');
+
+    return this.userModel.findOne({ caseInsensitiveIdentifier })
     // .select('-password')
+    .populate('roles')
+    .exec();
+  }
+
+  async findByUsernameOrEmail(identifier: string): Promise<User> {
+    // Create a case-insensitive regular expression for the identifier
+    const caseInsensitiveIdentifier = new RegExp(`^${identifier}$`, 'i');
+ 
+    return this.userModel.findOne({
+      $or: [
+        { 'username': caseInsensitiveIdentifier },
+        { 'profile.email': caseInsensitiveIdentifier }
+      ]
+    })
     .populate('roles')
     .exec();
   }
@@ -270,7 +286,8 @@ export class UserService {
     if (!email) {
       return null;
     }
-    return this.userModel.findOne({ 'profile.email': email }).exec();
+    const caseInsensitiveIdentifier = new RegExp(`^${email}$`, 'i');
+    return this.userModel.findOne({ 'profile.email': caseInsensitiveIdentifier }).exec();
   }
   
   async findByResetToken(token: string): Promise<any> {

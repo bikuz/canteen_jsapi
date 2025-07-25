@@ -35,10 +35,11 @@ export class LdapStrategy extends PassportStrategy(Strategy, 'ldap') {
     }
 
     async validate(req: Request & { body: LdapRequestBody }, ldapUser: any): Promise<any> {
+        console.log('LDAP USER:', ldapUser);
         const username = req.body.username; // Extract username from the request
         try {
             const user = await this.authService.validateLdapUser({
-                username: ldapUser.uid || username, // Use ldapUser.uid or fallback to username
+                username: ldapUser.uid || ldapUser.mail, // Use ldapUser.uid or fallback to email
                 firstName: ldapUser.givenName,
                 lastName: ldapUser.sn,
                 email: ldapUser.mail,

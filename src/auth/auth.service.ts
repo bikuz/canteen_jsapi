@@ -33,7 +33,7 @@ export class AuthService {
   async validateUser(username: string, password: string): Promise<any> {
     console.log('Validating user:', username);
     
-    const user = await this.userService.findByUsername(username);
+    const user = await this.userService.findByUsernameOrEmail(username);
     if (!user) {
       console.log('User not found:', username);
       return null;
@@ -63,30 +63,16 @@ export class AuthService {
       throw new UnauthorizedException('Email not verified. A verification email has been sent to your email address.');
     }
     
-    // Rest of the validation logic remains the same
-    console.log('Stored password hash:', user.password);
-    console.log('Provided password:', password);
-    console.log('Password length:', password.length);
-    
+    // Remove sensitive data logging
     try {
-      // Use the standard bcrypt.compare method
       const isPasswordValid = await bcrypt.compare(password, user.password);
-      console.log('Password comparison result:', isPasswordValid);
       
-      if (isPasswordValid) {
-        console.log('User validated successfully:', username);
-        const { password: pwd, ...result } = user.toObject();
-        return result;
+      if (!isPasswordValid) {
+        console.log('Invalid password for user:', username);
+        return null;
       }
       
-      // If the password doesn't match, let's try to update it for testing purposes
-      console.log('Password does not match, updating password for testing purposes');
-      const salt = await bcrypt.genSalt(10);
-      user.password = await bcrypt.hash(password, salt);
-      await user.save();
-      console.log('Password updated for user:', username);
-      
-      // Return the user after updating the password
+      console.log('User validated successfully:', username);
       const { password: pwd, ...result } = user.toObject();
       return result;
       
@@ -100,7 +86,7 @@ export class AuthService {
   async validateLdapUser(ldapUser: any): Promise<any> {
     try {
       console.log('LDAP validation called with', ldapUser);
-      const existingUser = await this.userService.findByUsername(ldapUser.username);
+      const existingUser = await this.userService.findByUsernameOrEmail(ldapUser.username);
       if (existingUser) {
         // Check if the user has a verified email
         if (!existingUser.isEmailVerified) {
