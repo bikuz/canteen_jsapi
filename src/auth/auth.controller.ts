@@ -206,8 +206,35 @@ export class AuthController {
                   
                   
                   if (response.ok) {
-                    document.getElementById('resetForm').innerHTML = '<div class="success">✓ Password Reset Successfully</div><p>Your password has been reset. You can now log in with your new password.</p><a href="icanteen://login" style="display: inline-block; background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin: 20px 0;">Open App</a>';
-                  } else {
+                    document.getElementById('resetForm').innerHTML = '<div class="success">✓ Password Reset Successfully</div><p>Your password has been reset. You can now log in with your new password.</p><a id="openAppLink" href="#" style="display: inline-block; background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin: 20px 0;">Open App</a>';
+                    document.getElementById('openAppLink').addEventListener('click', function (e) {
+                        e.preventDefault();
+
+                        const isAndroid = /android/i.test(navigator.userAgent);
+                        const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+
+                        const appScheme = 'icanteen://login';
+                        const androidIntent = 'intent://login#Intent;scheme=icanteen;package=com.yourapp.package;end';
+                        const fallbackUrl = 'https://play.google.com/store/apps/details?id=com.icimod.canteen'; 
+
+                        let now = new Date().getTime();
+                        setTimeout(() => {
+                          // if the app didn't open, fallback
+                          if (new Date().getTime() - now < 1500) {
+                            window.location.href = fallbackUrl;
+                          }
+                        }, 1000);
+
+                        if (isIOS) {
+                          window.location = appScheme;
+                        } else if (isAndroid) {
+                          window.location = androidIntent;
+                        } else {
+                          alert("Please open this link on your mobile device.");
+                        }
+                      });
+                      
+                    } else {
                     errorDiv.textContent = data.message || 'Failed to reset password';
                     errorDiv.style.display = 'block';
                   }
