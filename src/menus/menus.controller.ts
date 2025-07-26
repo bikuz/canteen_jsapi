@@ -95,7 +95,7 @@ export class MenusController {
 
                       return {
                           ..._item,
-                          image: _item.image ? `${baseUrl}/${_item.image}` : null,
+                          image: _item.image ? `${baseUrl}/${_item.image}` : `${baseUrl}/assets/images/no_image.png`,
                           orderingStartTime: ordertimeframe_food ? ordertimeframe_food.orderingStartTime : 0,
                           orderingEndTime: ordertimeframe_food ? ordertimeframe_food.orderingEndTime : 0,
                           isOrderTimeFrameActive: ordertimeframe_food ? ordertimeframe_food.isActive : false,
@@ -107,7 +107,7 @@ export class MenusController {
                       // Return item with default values if processing fails
                       return {
                           ..._item,
-                          image: _item.image ? `${baseUrl}/${_item.image}` : null,
+                          image: _item.image ? `${baseUrl}/${_item.image}` : `${baseUrl}/assets/images/no_image.png`,
                           orderingStartTime: 0,
                           orderingEndTime: 0,
                           isOrderTimeFrameActive: false,
@@ -190,7 +190,7 @@ export class MenusController {
 
                       return {
                           ..._item,
-                          image: _item.image ? `${baseUrl}/${_item.image}` : null,
+                          image: _item.image ? `${baseUrl}/${_item.image}` : `${baseUrl}/assets/images/no_image.png`,
                           orderingStartTime: ordertimeframe_food ? ordertimeframe_food.orderingStartTime : 0,
                           orderingEndTime: ordertimeframe_food ? ordertimeframe_food.orderingEndTime : 0,
                           isOrderTimeFrameActive: ordertimeframe_food ? ordertimeframe_food.isActive : false,
@@ -202,7 +202,7 @@ export class MenusController {
                       // Return item with default values if processing fails
                       return {
                           ..._item,
-                          image: _item.image ? `${baseUrl}/${_item.image}` : null,
+                          image: _item.image ? `${baseUrl}/${_item.image}` : `${baseUrl}/assets/images/no_image.png`,
                           orderingStartTime: 0,
                           orderingEndTime: 0,
                           isOrderTimeFrameActive: false,
@@ -271,7 +271,7 @@ export class MenusController {
                   if (isOrderingAllowed) {
                       return {
                           ..._item,
-                          image: _item.image ? `${baseUrl}/${_item.image}` : null,
+                          image: _item.image ? `${baseUrl}/${_item.image}` : `${baseUrl}/assets/images/no_image.png`,
                           orderingStartTime: ordertimeframe_food ? ordertimeframe_food.orderingStartTime : 0,
                           orderingEndTime: ordertimeframe_food ? ordertimeframe_food.orderingEndTime : 0,
                           isOrderTimeFrameActive: ordertimeframe_food ? ordertimeframe_food.isActive : false,

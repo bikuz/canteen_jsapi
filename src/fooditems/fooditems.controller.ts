@@ -63,7 +63,7 @@ export class FooditemsController {
 
             return {
               ..._item, // Convert category to plain object
-              image: _item.image ? `${baseUrl}/${_item.image}` : null,
+              image: _item.image ? `${baseUrl}/${_item.image}` : `${baseUrl}/assets/images/no_image.png`,
               orderingStartTime:ordertimeframe_food?ordertimeframe_food.orderingStartTime:0,
               orderingEndTime:ordertimeframe_food?ordertimeframe_food.orderingEndTime:0,
               isOrderTimeFrameActive:ordertimeframe_food?ordertimeframe_food.isActive:false,
@@ -112,7 +112,7 @@ export class FooditemsController {
 
             return {
               ..._item, // Convert category to plain object
-              image: _item.image ? `${baseUrl}/${_item.image}` : null,
+              image: _item.image ? `${baseUrl}/${_item.image}` : `${baseUrl}/assets/images/no_image.png`,
               orderingStartTime:ordertimeframe_food?ordertimeframe_food.orderingStartTime:0,
               orderingEndTime:ordertimeframe_food?ordertimeframe_food.orderingEndTime:0,
               isOrderTimeFrameActive:ordertimeframe_food?ordertimeframe_food.isActive:false,
@@ -335,7 +335,7 @@ export class FooditemsController {
 
                   return {
                       ..._item,  
-                      image: _item.image ? `${baseUrl}/${_item.image}` : null,
+                      image: _item.image ? `${baseUrl}/${_item.image}` : `${baseUrl}/assets/images/no_image.png`,
                       orderingStartTime:ordertimeframe_food?ordertimeframe_food.orderingStartTime:0,
                       orderingEndTime:ordertimeframe_food?ordertimeframe_food.orderingEndTime:0,
                       isOrderTimeFrameActive:ordertimeframe_food?ordertimeframe_food.isActive:false,
@@ -369,7 +369,7 @@ export class FooditemsController {
 
             return {
               ...fooditem,
-              image: fooditem.image ? `${baseUrl}/${fooditem.image}` : null,
+              image: fooditem.image ? `${baseUrl}/${fooditem.image}` : `${baseUrl}/assets/images/no_image.png`,
               orderingStartTime:ordertimeframe_food?ordertimeframe_food.orderingStartTime:0,
               orderingEndTime:ordertimeframe_food?ordertimeframe_food.orderingEndTime:0,
               isOrderTimeFrameActive:ordertimeframe_food?ordertimeframe_food.isActive:false,

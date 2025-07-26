@@ -71,7 +71,7 @@ export class CategoriesController {
             const isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
             return {
               ..._item, // Convert category to plain object
-              image: _item.image ? `${baseUrl}/${_item.image}` : null,
+              image: _item.image ? `${baseUrl}/${_item.image}` : `${baseUrl}/assets/images/no_image.png`,
               orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
               orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
               isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
@@ -116,7 +116,7 @@ export class CategoriesController {
 
                 return {
                   ..._item, // Convert category to plain object
-                  image: _item.image ? `${baseUrl}/${_item.image}` : null,
+                  image: _item.image ? `${baseUrl}/${_item.image}` : `${baseUrl}/assets/images/no_image.png`,
                   orderingStartTime:ordertimeframe_food?ordertimeframe_food.orderingStartTime:0,
                   orderingEndTime:ordertimeframe_food?ordertimeframe_food.orderingEndTime:0,
                   isOrderTimeFrameActive:ordertimeframe_food?ordertimeframe_food.isActive:false,
@@ -358,7 +358,7 @@ export class CategoriesController {
                 const isOrderingAllowed = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe);
                 return {
                   ..._item, // Convert category to plain object
-                  image: _item.image ? `${baseUrl}/${_item.image}` : null,
+                  image: _item.image ? `${baseUrl}/${_item.image}` : `${baseUrl}/assets/images/no_image.png`,
                   orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
                   orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
                   isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
@@ -392,7 +392,7 @@ export class CategoriesController {
 
             return {
               ...category,
-              image: category.image ? `${baseUrl}/${category.image}` : null,
+              image: category.image ? `${baseUrl}/${category.image}` : `${baseUrl}/assets/images/no_image.png`,
               orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
               orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
               isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
