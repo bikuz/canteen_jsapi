@@ -451,15 +451,16 @@ export class AuthService {
   
   async resetPassword(token: string, newPassword: string): Promise<any> {
     try {
-      console.log('Reset password request with token');
+      // console.log('Reset password request with token');
       
       // Find user with the reset token
       const user = await this.userService.findByResetToken(token);
+      
       if (!user) {
-        console.log('Invalid or expired reset token');
+        console.log('Invalid token');
         throw new HttpException('Invalid or expired reset token', HttpStatus.BAD_REQUEST);
       }
-      
+      // console.log(user.profile)
       // Check if token is expired
       const now = new Date();
       if (user.resetPasswordExpires < now) {
@@ -467,6 +468,11 @@ export class AuthService {
         throw new HttpException('Reset token has expired', HttpStatus.BAD_REQUEST);
       }
       
+      if (!newPassword) {
+        console.log('new Password is required');
+        throw new HttpException('new Password is required', HttpStatus.BAD_REQUEST);
+      }
+
       // Hash the new password
       const salt = await bcrypt.genSalt(10);
       console.log('Generated salt for new password');

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards, Request, Query, Headers, Res, HttpException, HttpStatus } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Request, Query, Headers, Res, HttpException, HttpStatus, UsePipes, ValidationPipe } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LocalAuthGuard } from './local-auth.guard';
 import { LdapAuthGuard } from '../auth/ldap.guard';
@@ -241,8 +241,12 @@ export class AuthController {
   }
   
   @Post('reset-password')
-  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto): Promise<any> {
-    console.log('Received reset password request');
+  @UsePipes(new ValidationPipe({ transform: true }))
+  async resetPassword(@Request() req, @Body() resetPasswordDto: ResetPasswordDto): Promise<any> {
+    // console.log('Raw body:', req.body);
+    // console.log('Received reset password request');
+    // console.log(resetPasswordDto.token);
+    // console.log(resetPasswordDto.newPassword);
     return this.authService.resetPassword(resetPasswordDto.token, resetPasswordDto.newPassword);
   }
 }

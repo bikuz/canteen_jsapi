@@ -292,6 +292,10 @@ export class UserService {
   
   async findByResetToken(token: string): Promise<any> {
     console.log('Finding user by reset token');
+    if (!token) {
+      throw new HttpException('Verification token is required', HttpStatus.BAD_REQUEST);
+    }
+    
     return this.userModel.findOne({ resetPasswordToken: token }).exec();
   }
 
