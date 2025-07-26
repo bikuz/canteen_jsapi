@@ -214,7 +214,7 @@ export class AuthController {
                         const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
 
                         const appScheme = 'icanteen://login';
-                        const androidIntent = 'intent://login#Intent;scheme=icanteen;package=com.yourapp.package;end';
+                        const androidIntent = 'intent://login#Intent;scheme=icanteen;package=com.icimod.canteen;end';
                         const fallbackUrl = 'https://play.google.com/store/apps/details?id=com.icimod.canteen'; 
 
                         let now = new Date().getTime();
@@ -233,7 +233,7 @@ export class AuthController {
                           alert("Please open this link on your mobile device.");
                         }
                       });
-                      
+
                     } else {
                     errorDiv.textContent = data.message || 'Failed to reset password';
                     errorDiv.style.display = 'block';
