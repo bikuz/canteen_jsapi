@@ -192,17 +192,18 @@ export class AuthController {
                 
                 try {
                   const response = await fetch('/auth/reset-password', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                      token: '${token}',
-                      newPassword: password
-                    }),
-                  });
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded', 
+                      },
+                      body: new URLSearchParams({
+                        token: '${token}',
+                        newPassword: password,
+                      }).toString(),
+                    });
+
+                    const data = await response.json();
                   
-                  const data = await response.json();
                   
                   if (response.ok) {
                     document.getElementById('resetForm').innerHTML = '<div class="success">✓ Password Reset Successfully</div><p>Your password has been reset. You can now log in with your new password.</p><a href="icanteen://login" style="display: inline-block; background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin: 20px 0;">Open App</a>';
