@@ -1,6 +1,6 @@
 
 // auth.service.ts
-import { Injectable, UnauthorizedException, HttpException, HttpStatus } from '@nestjs/common';
+import { Injectable, UnauthorizedException, HttpException, HttpStatus,InternalServerErrorException } from '@nestjs/common';
 import { Model, Types } from 'mongoose';
 import { JwtService } from '@nestjs/jwt';
 import { UserService } from '../users/users.service';
@@ -36,7 +36,7 @@ export class AuthService {
     const user = await this.userService.findByUsernameOrEmail(username);
     if (!user) {
       console.log('User not found:', username);
-      return null;
+      return null; // This will result in 404 in the login controller
     }
     
     // Check if the user has a verified email
@@ -60,7 +60,11 @@ export class AuthService {
         console.error('Error sending verification email:', emailError);
       }
       
-      throw new UnauthorizedException('Email not verified. A verification email has been sent to your email address.');
+      throw new UnauthorizedException({
+          statusCode: 401,
+          message: 'Email not verified. A verification email has been sent to your email address.',
+          requiresVerification: true
+      });
     }
     
     // Remove sensitive data logging
@@ -69,7 +73,11 @@ export class AuthService {
       
       if (!isPasswordValid) {
         console.log('Invalid password for user:', username);
-        return null;
+        throw new UnauthorizedException({
+            statusCode: 401,
+            message: 'Invalid username or password',
+            invalidCredentials: true
+        });
       }
       
       console.log('User validated successfully:', username);
@@ -78,7 +86,16 @@ export class AuthService {
       
     } catch (error) {
       console.error('Error during password validation:', error);
-      return null;
+      // If the error is already an HttpException, rethrow it
+        if (error instanceof HttpException) {
+            throw error;
+        }
+        
+        // For other errors, throw a 500 with a generic message
+        throw new InternalServerErrorException({
+            statusCode: 500,
+            message: 'An error occurred during authentication'
+        }); 
     }
   }
 
