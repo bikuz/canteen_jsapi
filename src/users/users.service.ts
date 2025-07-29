@@ -140,10 +140,11 @@ export class UserService {
   async findByUsername(username: string): Promise<User> {
     const caseInsensitiveIdentifier = new RegExp(`^${username}$`, 'i');
 
-    return this.userModel.findOne({ caseInsensitiveIdentifier })
+    var user= this.userModel.findOne({ 'username':caseInsensitiveIdentifier })
     // .select('-password')
     .populate('roles')
     .exec();
+    return user;
   }
 
   async findByUsernameOrEmail(identifier: string): Promise<User> {

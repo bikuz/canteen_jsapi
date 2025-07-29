@@ -170,7 +170,8 @@ export class AuthService {
 
       const user = await this.userService.findByUsername(payload.username);
       if (!user) {
-        throw new UnauthorizedException('Invalid refresh token');
+        throw new UnauthorizedException('Invalid user');
+
       }
 
       return {
