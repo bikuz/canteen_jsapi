@@ -187,15 +187,20 @@ export class MenusController {
                       if (_item.category) {
                           try {
                               categoryDetails = await this.categoryService.findOne(_item.category.toString());
-                              isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', _item.category.toString());
+                              if(categoryDetails.isAvailable){
+                                isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', _item.category.toString());
+                              }
                           } catch (categoryError) {
                               console.log('Error processing category for item:', _item._id, categoryError);
                           }
                       }
-
-                      const ordertimeframe_food = await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
-                      const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
-
+                      
+                      let ordertimeframe_food=null;
+                      let isOrderingAllowed_food=false;
+                      if(_item.isAvailable){
+                         ordertimeframe_food = await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
+                         isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
+                      }
                       return {
                           ..._item,
                           image: _item.image ? `${baseUrl}/${_item.image}` : `${baseUrl}/assets/images/no_image.png`,
@@ -267,13 +272,33 @@ export class MenusController {
           const fooditemWithOrdering = await Promise.all(
               uniqueFoodItems.map(async (_item) => {
                   // Safely check if category exists before processing
-                  if (!_item.category) {
-                      return undefined;
+                  // if (!_item.category) {
+                  //     return undefined;
+                  // }
+
+                  let categoryDetails = null;
+                  let isOrderingAllowed_cat = false;
+
+                  if (_item.category) {
+                      try {
+                          categoryDetails = await this.categoryService.findOne(_item.category.toString());
+                          if(categoryDetails.isAvailable){
+                            isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', _item.category.toString());
+                          }
+                      } catch (categoryError) {
+                          console.log('Error processing category for item:', _item._id, categoryError);
+                          return undefined;
+                      }
                   }
 
-                  const isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', _item.category.toString());
-                  const ordertimeframe_food = await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
-                  const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
+                 
+                  let ordertimeframe_food=null;
+                  let isOrderingAllowed_food=false;
+                  if(_item.isAvailable){
+                    ordertimeframe_food = await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
+                    isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
+                  }
+                  
                   const isOrderingAllowed = isOrderingAllowed_cat && isOrderingAllowed_food;
 
                   if (isOrderingAllowed) {
