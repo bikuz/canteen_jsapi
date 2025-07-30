@@ -84,14 +84,22 @@ export class MenusController {
                       if (_item.category) {
                           try {
                               categoryDetails = await this.categoryService.findOne(_item.category.toString());
-                              isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', _item.category.toString());
+                              if(categoryDetails.isAvailable){
+                                isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', _item.category.toString());
+                              }
+                              
                           } catch (categoryError) {
                               console.log('Error processing category for item:', _item._id, categoryError);
                           }
                       }
 
-                      const ordertimeframe_food = await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
-                      const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
+                      let ordertimeframe_food=null;
+                      let isOrderingAllowed_food=false;
+
+                      if(_item.isAvailable){
+                        ordertimeframe_food = await this.orderTimeFrameService.findOrderTimeframe('fooditems', _item._id.toString());
+                        isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
+                      }
 
                       return {
                           ..._item,
