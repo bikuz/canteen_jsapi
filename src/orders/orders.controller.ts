@@ -178,6 +178,13 @@ export class OrdersController {
     }    
   }
 
+  @Get('isOrderingAllowed')
+  async isOrderingAllowed(@Query('foodItemId') foodItemId: string) {
+    const foodItem = await this.fooditemService.findOne(foodItemId);
+    const isOrderingAllowed = await this.fooditemService.isOrderingAllowed(foodItem);
+    return { isOrderingAllowed };
+  }
+
   @Post('createOrderPayment')
   @ApiOperation({ summary: 'Create completed order with paid payment' })
   async createOrderPayment(
@@ -204,6 +211,31 @@ export class OrdersController {
         shortId: shortId,
         status: 'completed' // Set status to completed
       };
+
+
+      const itemsWithStatus = await Promise.all(
+        orderWithUser.foodItems.map(async (fd) => {
+          const fooditem= await this.fooditemService.findOne(fd);
+          const isOrderingAllowed = await this.fooditemService.isOrderingAllowed(fooditem);
+          return { foodItem: fooditem, isOrderingAllowed };
+        }),
+      );
+
+      // Check if all items have `isOrderingAllowed` as true
+      const allAllowed = itemsWithStatus.every(item => item.isOrderingAllowed);
+      // check if all items are available
+      const allAvailable = itemsWithStatus.every(item => item.foodItem.isAvailable);
+      
+      // allowed only if both are true
+      const isAllAllowed = allAllowed && allAvailable;
+      
+      
+      if (!isAllAllowed) {
+        throw new HttpException(
+          'Some food items are not available.',
+          HttpStatus.INTERNAL_SERVER_ERROR,
+        );
+      }
 
       // Create the order
       const order = await this.ordersService.create(orderWithUser);
