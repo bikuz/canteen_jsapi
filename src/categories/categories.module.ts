@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { CategoriesService } from './categories.service';
 import { CategoriesController } from './categories.controller';
@@ -14,7 +14,8 @@ import { UserModule } from '../users/users.module';
     // {name: FoodItem.name, schema: FoodItemSchema},
   ]),
   OrderTimeFrameModule, // Import the OrderTimeFrameModule
-  FoodItemsModule,
+  // FoodItemsModule,
+  forwardRef(() =>FoodItemsModule),
   UserModule
 ],
   providers: [CategoriesService],

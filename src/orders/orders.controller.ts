@@ -9,6 +9,8 @@ import { CreateOrderDto, UpdateOrderDto,CheckItemsDto } from './dto';
 
 import { FoodItemsService } from '../fooditems/fooditems.service';
 // import { OrderTimeFrameService } from '../ordertimeframe/ordertimeframe.service';
+// import { CategoriesService } from '../categories/categories.service';
+
 import { CreatePaymentDto } from '../payments/dto';
 
 import { PaymentsService } from '../payments/payments.service';
@@ -25,9 +27,10 @@ import { Roles } from '../helper/roles.decorator';
 @UseGuards(JwtAuthGuard, DynamicRolesGuard)
 export class OrdersController {
   constructor(
-    private readonly ordersService: OrdersService,
-    // private readonly orderTimeService:OrderTimeFrameService,
+    private readonly ordersService: OrdersService,    
     private readonly fooditemService:FoodItemsService,
+    // private readonly orderTimeFrameService:OrderTimeFrameService,
+    // private readonly categoryService:CategoriesService,
     private readonly paymentService:PaymentsService,
     private readonly userService:UserService,
     private readonly configService:ConfigService,
@@ -92,7 +95,7 @@ export class OrdersController {
           if (!foodItem) {
             return { foodItemId: fd, isOrderingAllowed: false, message: 'Food item not found.' };
           }
-          const isOrderingAllowed = await this.fooditemService.isOrderingAllowed(fd);
+          const isOrderingAllowed = await this.fooditemService.isOrderingAllowed(foodItem);
           return { ...foodItem, isOrderingAllowed };
         }),
       );
@@ -267,7 +270,28 @@ export class OrdersController {
       const itemsWithStatus = await Promise.all(
         orderWithUser.foodItems.map(async (fd) => {
           const fooditem= await this.fooditemService.findOne(fd);
-          const isOrderingAllowed = await this.fooditemService.isOrderingAllowed(fd);
+
+          // let categoryDetails = null;
+          // let isOrderingAllowed_cat = false;
+          
+          // if(fooditem.category){
+          //   categoryDetails = await this.categoryService.findOne(fooditem.category.toString());
+          //   if(categoryDetails.isAvailable){
+          //     isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', fooditem.category.toString());
+          //   }
+          // }
+
+          // let ordertimeframe_food=null;
+          // let isOrderingAllowed_food=false;
+
+          // if(fooditem.isAvailable){
+          //   ordertimeframe_food = await this.orderTimeFrameService.findOrderTimeframe('fooditems', fooditem._id.toString());
+          //   isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
+          // }
+
+          
+          const isOrderingAllowed = await this.fooditemService.isOrderingAllowed(fooditem);
+
           return { foodItem: fooditem, isOrderingAllowed };
         }),
       );

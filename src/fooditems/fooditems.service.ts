@@ -4,14 +4,14 @@ import { Model } from 'mongoose';
 import { FoodItem } from './fooditems.model';
 import { CreateFoodItemDto, UpdateFoodItemDto } from './dto';
 import { OrderTimeFrameService } from '../ordertimeframe/ordertimeframe.service';
-// import { CategoriesService } from '../categories/categories.service';
+import { CategoriesService } from '../categories/categories.service';
 
 @Injectable()
 export class FoodItemsService {
     constructor(
         @InjectModel(FoodItem.name) private foodItemModel:Model<FoodItem>,
         private readonly orderTimeFrameService:OrderTimeFrameService,
-        // private readonly categoryService:CategoriesService,
+        private readonly categoryService:CategoriesService,
     ){}
 
     async create(createFoodItemDto: CreateFoodItemDto): Promise<FoodItem> {
@@ -96,15 +96,32 @@ export class FoodItemsService {
         }
     }
 
-    async isOrderingAllowed(id:string): Promise<boolean>{
+    async isOrderingAllowed(fooditem:FoodItem): Promise<boolean>{
         try{
-            const fooditem = await this.foodItemModel.findById(id).lean().exec();
-            if (!fooditem) {
-                throw new NotFoundException(`FoodItem #${id} not found`);
+            // const fooditem = await this.foodItemModel.findById(id).lean().exec();
+            // if (!fooditem) {
+            //     throw new NotFoundException(`FoodItem #${id} not found`);
+            // }
+
+            let categoryDetails = null;
+            let isOrderingAllowed_cat = false;
+
+            if(fooditem.category){
+                categoryDetails = await this.categoryService.findOne(fooditem.category.toString());
+                if(categoryDetails.isAvailable){
+                  isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', fooditem.category.toString());
+                }
             }
 
-            const isOrderingAllowed_cat = await this.orderTimeFrameService.isOrderingAllowed('category', fooditem.category.toString());
-            const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed('fooditems', id);
+            let ordertimeframe_food=null;
+            let isOrderingAllowed_food=false;
+
+            if(fooditem.isAvailable){
+                ordertimeframe_food = await this.orderTimeFrameService.findOrderTimeframe('fooditems', fooditem._id.toString());
+                isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed(ordertimeframe_food);
+            }
+
+            // const isOrderingAllowed_food = await this.orderTimeFrameService.isOrderingAllowed('fooditems', id);
             const isOrderingAllowed = isOrderingAllowed_cat && isOrderingAllowed_food;
 
             return isOrderingAllowed;
