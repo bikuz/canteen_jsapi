@@ -11,9 +11,9 @@ baseURL:
   - https://canteen.icimod.org/api
   # - http://localhost:3000
 androidAppVersion:
-  - 1.0.0
+  - 1.0.2
 iosAppVersion:
-  - 1.0.0
+  - 1.0.2
 ignoreControllers:
   - ControllerScannerController
   - AuthController
