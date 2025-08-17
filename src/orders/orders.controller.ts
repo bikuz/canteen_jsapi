@@ -38,6 +38,10 @@ export class OrdersController {
     
   }
 
+  private getBaseUrl(): string {
+    return this.configService.get('baseURL')[0];
+  }
+
   @Get('page/:page/limit/:limit')
   async findByPage(
     @Param('page') page: string,
@@ -621,14 +625,24 @@ export class OrdersController {
         }
       }
 
+      const baseUrl = this.getBaseUrl();
       const orders = await this.ordersService.findAll(query);
 
       const ordersWithCancelStatus = await Promise.all(
         orders.map(async (item) => {
           const payment = await this.paymentService.filterOne({order: item._id.toString()});
           const userProfile = await this.userService.findProfile(item.customer.toString());
+          
+          // Process food items images
+          if (item.foodItems && Array.isArray(item.foodItems)) {
+            item.foodItems.forEach(_item => {
+              _item.image = _item.image ? `${baseUrl}/${_item.image}` : `${baseUrl}/assets/images/no_image.png`;
+            });
+          }
+          
           return {
             ...item,
+           
             token: payment?.token || null,
             paymentStatus: payment?.paymentStatus || 'unknown',
             isCancelAllowed: await this.ordersService.isCancelAllowed(item._id.toString()),
