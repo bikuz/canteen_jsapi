@@ -539,7 +539,8 @@ export class OrdersController {
     @Query('paymentStatus') paymentStatus?: string,
     @Query('token') token?: string,
     @Query('shortId') shortId?: string,
-    @Query('orderStatus') orderStatus?: string
+    @Query('orderStatus') orderStatus?: string,
+    @Query('customer') customer?: string
   ) {
     return this.findAll(
       startDate,
@@ -547,7 +548,8 @@ export class OrdersController {
       paymentStatus,
       token,
       shortId,
-      orderStatus
+      orderStatus,
+      customer
     );
   }
 
