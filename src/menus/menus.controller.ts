@@ -361,11 +361,14 @@ async findByPage(
       if (menu.foodItems && Array.isArray(menu.foodItems)) {
         menu.foodItems.forEach(foodItem => {
           if (foodItem.image) {
-            // Prepend baseUrl to food item's image URL
-            if (!foodItem.image.startsWith(baseUrl)) {
-              foodItem.image = `${baseUrl}/${foodItem.image}`;
-              // console.log(foodItem.image);
+            // Check if the image URL already contains the base URL to avoid duplication
+            if (foodItem.image.startsWith('http://') || foodItem.image.startsWith('https://') || foodItem.image.startsWith(baseUrl)) {
+              // URL is already complete, don't modify it
+              return;
             }
+            foodItem.image = `${baseUrl}/${foodItem.image}`;
+          } else {
+            foodItem.image = `${baseUrl}/assets/images/no_image.png`;
           }
         });
       }
@@ -469,11 +472,17 @@ async create(
         menus.forEach(menu => {
             if (menu.foodItems && Array.isArray(menu.foodItems)) {
               menu.foodItems.forEach(foodItem => {
-                // if (foodItem.image) {
-                //   // Prepend baseUrl to food item's image URL
-                //   foodItem.image = `${baseUrl}/${foodItem.image}`;
-                // }
-                foodItem.image = foodItem.image ? `${baseUrl}/${foodItem.image}` : `${baseUrl}/assets/images/no_image.png`;
+                // foodItem.image = foodItem.image ? `${baseUrl}/${foodItem.image}` : `${baseUrl}/assets/images/no_image.png`;
+                if (foodItem.image) {
+                  // Check if the image URL already contains the base URL to avoid duplication
+                  if (foodItem.image.startsWith('http://') || foodItem.image.startsWith('https://') || foodItem.image.startsWith(baseUrl)) {
+                    // URL is already complete, don't modify it
+                    return;
+                  }
+                  foodItem.image = `${baseUrl}/${foodItem.image}`;
+                } else {
+                  foodItem.image = `${baseUrl}/assets/images/no_image.png`;
+                }
               });
             }
           });
