@@ -208,7 +208,8 @@ export class CategoriesController {
                  
               return {
                 ...catgory.toObject(),
-                image:`${baseUrl}/${catgory.image}`,
+                // image:`${baseUrl}/${catgory.image}`,
+                image: catgory.image ? `${baseUrl}/${catgory.image}` : `${baseUrl}/assets/images/no_image.png`,
                 orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
                 orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
                 isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
@@ -321,7 +322,8 @@ export class CategoriesController {
             const updatedCat= await this.categoryService.update(id, updateCatData);
             return {
               ...updatedCat,
-              image:`${baseUrl}/${updatedCat.image}`,
+              // image:`${baseUrl}/${updatedCat.image}`,
+              image: updatedCat.image ? `${baseUrl}/${updatedCat.image}` : `${baseUrl}/assets/images/no_image.png`,
               orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
               orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
               isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,

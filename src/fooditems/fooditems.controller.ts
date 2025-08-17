@@ -197,7 +197,8 @@ export class FooditemsController {
 
             return {
                 ...fooditem.toObject(),
-                image:`${baseUrl}/${fooditem.image}`,
+                // image:`${baseUrl}/${fooditem.image}`,
+                image: fooditem.image ? `${baseUrl}/${fooditem.image}` : `${baseUrl}/assets/images/no_image.png`,
                 orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
                 orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
                 isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
@@ -296,7 +297,8 @@ export class FooditemsController {
 
             return {
                 ...updatedfood,
-                image:`${baseUrl}/${updatedfood.image}`,
+                // image:`${baseUrl}/${updatedfood.image}`,
+                image: updatedfood.image ? `${baseUrl}/${updatedfood.image}` : `${baseUrl}/assets/images/no_image.png`,
                 orderingStartTime:ordertimeframe?ordertimeframe.orderingStartTime:0,
                 orderingEndTime:ordertimeframe?ordertimeframe.orderingEndTime:0,
                 isOrderTimeFrameActive:ordertimeframe?ordertimeframe.isActive:false,
