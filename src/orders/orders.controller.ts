@@ -633,12 +633,21 @@ export class OrdersController {
           const payment = await this.paymentService.filterOne({order: item._id.toString()});
           const userProfile = await this.userService.findProfile(item.customer.toString());
           
-          // Process food items images
-          if (item.foodItems && Array.isArray(item.foodItems)) {
-            item.foodItems.forEach(_item => {
-              _item.image = _item.image ? `${baseUrl}/${_item.image}` : `${baseUrl}/assets/images/no_image.png`;
-            });
-          }
+                     // Process food items images
+           if (item.foodItems && Array.isArray(item.foodItems)) {
+             item.foodItems.forEach(_item => {
+               if (_item.image) {
+                 // Check if the image URL already contains the base URL to avoid duplication
+                 if (_item.image.startsWith('http://') || _item.image.startsWith('https://') || _item.image.startsWith(baseUrl)) {
+                   // URL is already complete, don't modify it
+                   return;
+                 }
+                 _item.image = `${baseUrl}/${_item.image}`;
+               } else {
+                 _item.image = `${baseUrl}/assets/images/no_image.png`;
+               }
+             });
+           }
           
           return {
             ...item,

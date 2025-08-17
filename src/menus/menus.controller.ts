@@ -424,10 +424,11 @@ async create(
        
         if (updatedMenu.foodItems && Array.isArray(updatedMenu.foodItems)) {
             updatedMenu.foodItems.forEach(foodItem => {
-                if (foodItem.image) {
-                    // Prepend baseUrl to food item's image URL
-                    foodItem.image = `${baseUrl}/${foodItem.image}`;
-                }
+                // if (foodItem.image) {
+                //     // Prepend baseUrl to food item's image URL
+                //     foodItem.image = `${baseUrl}/${foodItem.image}`;
+                // }
+                foodItem.image = foodItem.image ? `${baseUrl}/${foodItem.image}` : `${baseUrl}/assets/images/no_image.png`;
             });
         }
          
@@ -468,10 +469,11 @@ async create(
         menus.forEach(menu => {
             if (menu.foodItems && Array.isArray(menu.foodItems)) {
               menu.foodItems.forEach(foodItem => {
-                if (foodItem.image) {
-                  // Prepend baseUrl to food item's image URL
-                  foodItem.image = `${baseUrl}/${foodItem.image}`;
-                }
+                // if (foodItem.image) {
+                //   // Prepend baseUrl to food item's image URL
+                //   foodItem.image = `${baseUrl}/${foodItem.image}`;
+                // }
+                foodItem.image = foodItem.image ? `${baseUrl}/${foodItem.image}` : `${baseUrl}/assets/images/no_image.png`;
               });
             }
           });
@@ -499,10 +501,7 @@ async create(
       
         if (menu.foodItems && Array.isArray(menu.foodItems)) {
           menu.foodItems.forEach(foodItem => {
-            if (foodItem.image) {
-              // Prepend baseUrl to food item's image URL
-              foodItem.image = `${baseUrl}/${foodItem.image}`;
-            }
+            foodItem.image = foodItem.image ? `${baseUrl}/${foodItem.image}` : `${baseUrl}/assets/images/no_image.png`;
           });
         }
      
