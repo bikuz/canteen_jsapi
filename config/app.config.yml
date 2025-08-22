@@ -13,7 +13,7 @@ baseURL:
 androidAppVersion:
   - 1.0.3
 iosAppVersion:
-  - 1.0.2
+  - 1.0.3
 ignoreControllers:
   - ControllerScannerController
   - AuthController
